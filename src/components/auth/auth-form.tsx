@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +10,12 @@ import { Input, Textarea } from "@/components/ui/input";
 
 type AuthMode = "login" | "signup";
 
-export function AuthForm({ mode }: { mode: AuthMode }) {
-  const searchParams = useSearchParams();
+export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; initialMessage?: string | null }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(searchParams.get("error"));
+  const [message, setMessage] = useState<string | null>(initialMessage);
 
   function getAuthRedirectUrl(next = "/") {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();

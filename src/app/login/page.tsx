@@ -4,7 +4,13 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <AppShell>
       <main className="mx-auto grid min-h-[calc(100vh-88px)] w-full max-w-7xl items-center gap-8 px-5 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-10">
@@ -33,7 +39,7 @@ export default function LoginPage() {
             </Card>
           </div>
         </section>
-        <AuthForm mode="login" />
+        <AuthForm mode="login" initialMessage={error ?? null} />
       </main>
     </AppShell>
   );
