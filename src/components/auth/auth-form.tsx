@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { createSupabaseBrowserClient, getBrowserAppUrl } from "@/lib/supabase/browser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,13 +18,13 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
   const [message, setMessage] = useState<string | null>(initialMessage);
 
   function getAuthRedirectUrl(next = "/") {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    const appUrl = getBrowserAppUrl().trim();
     const origin = appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : window.location.origin;
     return `${origin}/api/auth/callback?next=${encodeURIComponent(next)}`;
   }
 
   function getEmailConfirmationRedirectUrl() {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    const appUrl = getBrowserAppUrl().trim();
     const origin = appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : window.location.origin;
     return `${origin}/login?confirmed=1`;
   }
