@@ -17,7 +17,14 @@ const desktopNavItems = [
 export async function TopNav() {
   const user = await getAuthenticatedUser();
   const profile = await getCurrentProfile();
-  const profileName = profile?.full_name?.trim() || "Complete your profile";
+  const authMetadata = user?.user_metadata ?? {};
+  const authName =
+    typeof authMetadata.full_name === "string"
+      ? authMetadata.full_name
+      : typeof authMetadata.name === "string"
+        ? authMetadata.name
+        : null;
+  const profileName = profile?.full_name?.trim() || authName?.trim() || "Complete your profile";
   const profileBadgeLabel =
     typeof profile?.quality_score === "number" && profile.quality_score > 0
       ? `Profile ${profile.quality_score}`
