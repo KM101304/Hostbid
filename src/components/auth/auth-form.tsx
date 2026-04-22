@@ -23,6 +23,12 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
     return `${origin}/api/auth/callback?next=${encodeURIComponent(next)}`;
   }
 
+  function getEmailConfirmationRedirectUrl() {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    const origin = appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : window.location.origin;
+    return `${origin}/login?confirmed=1`;
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -45,7 +51,7 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
               data: {
                 full_name: fullName,
               },
-              emailRedirectTo: getAuthRedirectUrl("/profile"),
+              emailRedirectTo: getEmailConfirmationRedirectUrl(),
             },
           })
         : await supabase.auth.signInWithPassword({
@@ -54,7 +60,11 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
           });
 
     if (response.error) {
-      setMessage(response.error.message);
+      setMessage(
+        response.error.message === "Email not confirmed"
+          ? "Confirm your email from the message we sent, then come back and log in."
+          : response.error.message,
+      );
       setLoading(false);
       return;
     }

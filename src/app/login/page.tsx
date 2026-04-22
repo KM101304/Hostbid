@@ -7,9 +7,11 @@ import { Card } from "@/components/ui/card";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; confirmed?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, confirmed } = await searchParams;
+  const initialMessage =
+    error ?? (confirmed === "1" ? "Your email is confirmed. You can log in now." : null);
 
   return (
     <AppShell>
@@ -39,7 +41,7 @@ export default async function LoginPage({
             </Card>
           </div>
         </section>
-        <AuthForm mode="login" initialMessage={error ?? null} />
+        <AuthForm mode="login" initialMessage={initialMessage} />
       </main>
     </AppShell>
   );
