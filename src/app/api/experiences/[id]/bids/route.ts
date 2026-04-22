@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { applyRateLimitHeaders, getClientIp } from "@/lib/request";
 import { calculatePlatformFee, getStripe } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { bidIntentSchema } from "@/lib/validators";
@@ -24,7 +26,8 @@ export async function GET(
         .select("*")
         .eq("experience_id", id)
         .eq("bidder_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(20);
 
       return NextResponse.json({ bids: data ?? [] });
     }
@@ -47,7 +50,8 @@ export async function GET(
       )
       .eq("experience_id", id)
       .order("amount_cents", { ascending: false })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     return NextResponse.json({ bids: data ?? [] });
   } catch (error) {
@@ -65,6 +69,22 @@ export async function POST(
   try {
     const { id } = await params;
     const user = await requireUser();
+    const rateLimit = checkRateLimit({
+      key: `bid:create:${user.id}:${getClientIp(request)}`,
+      limit: 8,
+      windowMs: 60_000,
+    });
+
+    if (!rateLimit.allowed) {
+      return applyRateLimitHeaders(
+        NextResponse.json(
+          { error: "Too many bid attempts. Please wait a minute and try again." },
+          { status: 429 },
+        ),
+        rateLimit,
+      );
+    }
+
     const admin = createSupabaseAdminClient();
     const stripe = getStripe();
     const body = await request.json();
@@ -140,10 +160,13 @@ export async function POST(
         },
       });
 
-      return NextResponse.json({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      });
+      return applyRateLimitHeaders(
+        NextResponse.json({
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+        }),
+        rateLimit,
+      );
     }
 
     const paymentIntent = await stripe.paymentIntents.retrieve(parsed.paymentIntentId);
@@ -170,7 +193,7 @@ export async function POST(
       throw error;
     }
 
-    return NextResponse.json({ bid: data });
+    return applyRateLimitHeaders(NextResponse.json({ bid: data }), rateLimit);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to place bid." },

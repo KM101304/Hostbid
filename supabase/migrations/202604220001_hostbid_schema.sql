@@ -123,13 +123,17 @@ create table if not exists public.moderation_queue (
 );
 
 create index if not exists experiences_feed_idx on public.experiences (status, created_at desc);
+create index if not exists experiences_open_expiry_idx on public.experiences (status, expires_at, created_at desc);
 create index if not exists experiences_location_idx on public.experiences (location, status);
 create index if not exists experiences_user_idx on public.experiences (user_id, status);
 create index if not exists bids_experience_status_idx on public.bids (experience_id, status, amount_cents desc, created_at desc);
 create index if not exists bids_bidder_status_idx on public.bids (bidder_id, status, created_at desc);
 create index if not exists threads_participants_idx on public.threads (poster_id, bidder_id, created_at desc);
+create index if not exists threads_poster_created_idx on public.threads (poster_id, created_at desc);
+create index if not exists threads_bidder_created_idx on public.threads (bidder_id, created_at desc);
 create index if not exists messages_thread_created_idx on public.messages (thread_id, created_at asc);
 create index if not exists reports_status_idx on public.reports (status, created_at desc);
+create index if not exists reports_reporter_created_idx on public.reports (reporter_id, created_at desc);
 create index if not exists moderation_queue_status_idx on public.moderation_queue (status, priority, created_at desc);
 
 create trigger profiles_updated_at before update on public.profiles

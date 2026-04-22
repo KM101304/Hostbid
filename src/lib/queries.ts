@@ -48,6 +48,12 @@ type MessageItem = {
   thread_id: string;
 };
 
+const DISCOVERY_PAGE_SIZE = 24;
+const DASHBOARD_SECTION_SIZE = 12;
+const THREAD_LIST_SIZE = 25;
+const THREAD_MESSAGE_SIZE = 100;
+const EXPERIENCE_BID_SIZE = 50;
+
 export async function getDiscoveryExperiences() {
   if (!hasSupabaseAdminEnv()) {
     return [];
@@ -75,7 +81,8 @@ export async function getDiscoveryExperiences() {
     )
     .eq("status", "open")
     .or("expires_at.is.null,expires_at.gte.now()")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(DISCOVERY_PAGE_SIZE);
 
   return (data ?? []) as unknown as DiscoveryExperience[];
 }
@@ -131,7 +138,8 @@ export async function getExperienceDetail(experienceId: string) {
     .eq("experience_id", experienceId)
     .in("status", ["active", "selected", "refunded", "capture_failed"])
     .order("amount_cents", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(EXPERIENCE_BID_SIZE);
 
   const visibleBids =
     userId && experience?.user_id === userId
@@ -164,7 +172,8 @@ export async function getThreadsForUser(userId: string) {
       `,
     )
     .or(`poster_id.eq.${userId},bidder_id.eq.${userId}`)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(THREAD_LIST_SIZE);
 
   return (data ?? []) as unknown as ThreadListItem[];
 }
@@ -184,7 +193,8 @@ export async function getDashboardData(userId: string) {
       .from("experiences")
       .select("*, bids(id, status)")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(DASHBOARD_SECTION_SIZE),
     admin
       .from("bids")
       .select(
@@ -199,7 +209,8 @@ export async function getDashboardData(userId: string) {
         `,
       )
       .eq("bidder_id", userId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(DASHBOARD_SECTION_SIZE),
   ]);
 
   return {
@@ -251,10 +262,11 @@ export async function getThreadDetail(threadId: string, userId: string) {
     .from("messages")
     .select("*")
     .eq("thread_id", threadId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(THREAD_MESSAGE_SIZE);
 
   return {
     thread: (thread ?? null) as unknown as ThreadListItem | null,
-    messages: (messages ?? []) as unknown as MessageItem[],
+    messages: ((messages ?? []).reverse()) as unknown as MessageItem[],
   };
 }

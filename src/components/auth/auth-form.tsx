@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +12,18 @@ import { Input, Textarea } from "@/components/ui/input";
 type AuthMode = "login" | "signup";
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(searchParams.get("error"));
+
+  function getAuthRedirectUrl(next = "/") {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    const origin = appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : window.location.origin;
+    return `${origin}/api/auth/callback?next=${encodeURIComponent(next)}`;
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +47,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               data: {
                 full_name: fullName,
               },
+              emailRedirectTo: getAuthRedirectUrl("/profile"),
             },
           })
         : await supabase.auth.signInWithPassword({
@@ -54,8 +61,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    router.push(mode === "signup" ? "/profile" : "/");
-    router.refresh();
+    if (mode === "signup" && !response.data.session) {
+      setMessage("Check your email to confirm your account, then come back here to log in.");
+      setLoading(false);
+      return;
+    }
+
+    await supabase.auth.getSession();
+    window.location.assign(mode === "signup" ? "/profile" : "/");
   }
 
   async function handleGoogle() {
@@ -73,7 +86,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: getAuthRedirectUrl("/"),
       },
     });
 
