@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
-import { BadgeCheck, Camera, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BadgeCheck, Camera, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
 import { computeProfileQualityScore } from "@/lib/marketplace";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,14 @@ type ProfileFormProps = {
   } | null;
 };
 
+type StripeConnectState = {
+  accountId?: string | null;
+  connected: boolean;
+  onboardingComplete: boolean;
+  payoutsEnabled: boolean;
+  chargesEnabled?: boolean;
+};
+
 export function ProfileForm({ profile }: ProfileFormProps) {
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [age, setAge] = useState(String(profile?.age ?? ""));
@@ -35,7 +43,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     profile?.stripe_connect_account_id ?? "",
   );
   const [message, setMessage] = useState<string | null>(null);
+  const [stripeMessage, setStripeMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
+  const [stripeState, setStripeState] = useState<StripeConnectState>({
+    accountId: profile?.stripe_connect_account_id ?? null,
+    connected: Boolean(profile?.stripe_connect_account_id),
+    onboardingComplete: false,
+    payoutsEnabled: false,
+  });
 
   const score = useMemo(
     () =>
@@ -54,6 +70,42 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const profileHeading = fullName || (hasStartedProfile ? "Your profile is taking shape" : "Start with a few trust signals");
   const profileMeta = [location || "Add a home base", age ? `Age ${age}` : null].filter(Boolean).join(" · ");
   const profileBadgeLabel = score > 0 ? `Profile ${score}` : "In progress";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeParam = params.get("stripe");
+
+    if (stripeParam === "connected") {
+      setStripeMessage("Stripe setup completed. Your payouts can now flow automatically when you accept a winning bid.");
+    }
+
+    if (stripeParam === "refresh") {
+      setStripeMessage("Stripe setup was refreshed. Finish the remaining steps to enable payouts.");
+    }
+  }, []);
+
+  useEffect(() => {
+    async function fetchStripeStatus() {
+      const response = await fetch("/api/stripe/connect");
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setStripeMessage(payload.error ?? "Unable to load Stripe payout status.");
+        return;
+      }
+
+      setStripeState({
+        accountId: payload.accountId,
+        connected: payload.connected,
+        onboardingComplete: payload.onboardingComplete,
+        payoutsEnabled: payload.payoutsEnabled,
+        chargesEnabled: payload.chargesEnabled,
+      });
+      setStripeConnectAccountId(payload.accountId ?? "");
+    }
+
+    void fetchStripeStatus();
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,6 +134,39 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     setSaving(false);
     setMessage(response.ok ? "Profile updated." : payload.error ?? "Unable to update profile.");
   }
+
+  async function handleStripeConnect() {
+    setConnectingStripe(true);
+    setStripeMessage(null);
+
+    const response = await fetch("/api/stripe/connect", {
+      method: "POST",
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      setConnectingStripe(false);
+      setStripeMessage(payload.error ?? "Unable to start Stripe onboarding.");
+      return;
+    }
+
+    setStripeConnectAccountId(payload.accountId ?? "");
+
+    window.location.assign(payload.url);
+  }
+
+  const stripeStatusLabel = !stripeState.connected
+    ? "Not connected"
+    : stripeState.payoutsEnabled
+      ? "Payouts enabled"
+      : stripeState.onboardingComplete
+        ? "Almost ready"
+        : "Setup in progress";
+  const stripeButtonLabel = !stripeState.connected
+    ? "Connect Stripe payouts"
+    : stripeState.payoutsEnabled
+      ? "Open Stripe dashboard"
+      : "Continue Stripe setup";
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -165,15 +250,43 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             <input type="checkbox" checked={isVerified} onChange={(e) => setIsVerified(e.target.checked)} />
           </label>
 
-          <Input
-            placeholder="Stripe Connect account ID (optional)"
-            value={stripeConnectAccountId}
-            onChange={(e) => setStripeConnectAccountId(e.target.value)}
-          />
+          <Card as="section" className="space-y-4 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                  <p className="text-sm font-semibold text-slate-900">Stripe payouts</p>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Connect Stripe once so accepted bids can route to you automatically and HostBid can keep the platform fee.
+                </p>
+              </div>
+              <Badge tone={stripeState.payoutsEnabled ? "success" : stripeState.connected ? "info" : "default"}>
+                {stripeStatusLabel}
+              </Badge>
+            </div>
 
-          <p className="text-sm leading-7 text-slate-500">
-            If you connect Stripe, accepted offers can route automatically with HostBid’s application fee preserved.
-          </p>
+            <div className="rounded-2xl bg-slate-50/90 p-4 text-sm leading-6 text-slate-600">
+              {!stripeState.connected
+                ? "You have not connected payouts yet. Right now the platform can still capture a winning bid, but your automatic payout route is not finished."
+                : stripeState.payoutsEnabled
+                  ? "Your payout route is ready. When you accept a winning bid, Stripe can route the funds to you with the HostBid fee preserved."
+                  : "Your Stripe account exists, but there are still onboarding steps left before payouts are fully enabled."}
+            </div>
+
+            <Button
+              type="button"
+              variant={stripeState.payoutsEnabled ? "secondary" : "primary"}
+              className="w-full gap-2"
+              onClick={handleStripeConnect}
+              disabled={connectingStripe}
+            >
+              {connectingStripe ? "Opening Stripe..." : stripeButtonLabel}
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+
+            {stripeMessage ? <p className="text-sm text-slate-600">{stripeMessage}</p> : null}
+          </Card>
 
           <Button type="submit" className="w-full" disabled={saving}>
             {saving ? "Saving..." : "Save profile"}

@@ -37,6 +37,10 @@ export function hasSupabaseAdminEnv() {
   return hasSupabaseEnv() && hasEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
 
+export function getAppUrl() {
+  return getRequiredEnv("NEXT_PUBLIC_APP_URL").replace(/\/$/, "");
+}
+
 export function getPlatformFeePercent() {
   return Number(process.env.HOSTBID_PLATFORM_FEE_PERCENT ?? "15");
 }
