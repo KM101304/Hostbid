@@ -1,7 +1,10 @@
 "use client";
 
+import { ShieldAlert } from "lucide-react";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 
 export function ReportForm({
@@ -36,13 +39,22 @@ export function ReportForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-[2rem] border border-stone-200 bg-white p-5">
+    <Card as="form" onSubmit={handleSubmit} className="space-y-4 p-6">
+      <div className="space-y-2">
+        <Badge tone="warning">
+          <ShieldAlert className="h-3.5 w-3.5" />
+          Safety report
+        </Badge>
+        <p className="text-sm leading-6 text-slate-600">
+          Flag concerns quietly so the moderation team can review them.
+        </p>
+      </div>
       <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
       <Textarea placeholder="Details" value={details} onChange={(e) => setDetails(e.target.value)} />
       <Button type="submit" variant="secondary">
         Submit report
       </Button>
-      {message ? <p className="text-sm text-stone-600">{message}</p> : null}
-    </form>
+      {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+    </Card>
   );
 }

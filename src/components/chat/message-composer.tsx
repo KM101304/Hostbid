@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/input";
 
 export function MessageComposer({ threadId }: { threadId: string }) {
@@ -34,11 +35,15 @@ export function MessageComposer({ threadId }: { threadId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-[2rem] border border-stone-200 bg-white p-5">
-      <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Keep plans clear, specific, and respectful." />
+    <Card as="form" onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
+      <Textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Share a thoughtful next step, confirm details, or keep the conversation comfortable and clear."
+      />
       <Button type="submit" disabled={sending || !body.trim()}>
         {sending ? "Sending..." : "Send message"}
       </Button>
-    </form>
+    </Card>
   );
 }

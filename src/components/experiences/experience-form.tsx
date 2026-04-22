@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 
 const SAFETY_OPTIONS = [
@@ -62,51 +65,95 @@ export function ExperienceForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-      <section className="space-y-4 rounded-[2rem] border border-stone-200 bg-white p-6">
-        <div>
-          <p className="text-sm uppercase tracking-[0.24em] text-stone-500">New experience</p>
-          <h1 className="font-serif text-4xl text-stone-950">Frame the kind of time together that feels worth competing for.</h1>
+    <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <Card as="section" className="space-y-5 p-6 sm:p-8">
+        <div className="space-y-3">
+          <Badge tone="primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            New experience
+          </Badge>
+          <div>
+            <h1 className="page-title">Shape a moment people genuinely want to step into.</h1>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+              Lead with the atmosphere, the boundaries, and the kind of person who would make the plan feel easy.
+            </p>
+          </div>
         </div>
-        <Input name="title" placeholder="Dinner at Cactus Club" required />
-        <Input name="vibeSummary" placeholder="Confident, low-pressure, design-minded evening" required />
-        <Textarea name="description" placeholder="Set the energy, expectations, and what a great host would understand." required />
-        <Input name="location" placeholder="Vancouver, BC" required />
+
+        <Input name="title" placeholder="Rooftop dinner with city views" required />
+        <Input name="vibeSummary" placeholder="Warm, curious, design-minded evening with room to connect" required />
+        <Textarea
+          name="description"
+          placeholder="Describe the energy, expectations, and what a thoughtful offer should understand before reaching out."
+          required
+        />
+        <Input name="location" placeholder="Los Angeles, CA" required />
+
         <div className="grid gap-4 md:grid-cols-2">
           <Input name="dateWindowStart" type="datetime-local" />
           <Input name="dateWindowEnd" type="datetime-local" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input name="budgetMinCents" type="number" min="0" placeholder="Min expected spend (USD)" />
-          <Input name="budgetMaxCents" type="number" min="0" placeholder="Max expected spend (USD)" />
-        </div>
-        <Input name="expiresAt" type="datetime-local" />
-      </section>
 
-      <section className="space-y-4 rounded-[2rem] border border-stone-200 bg-white p-6">
-        <div>
-          <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Safety preferences</p>
-          <p className="mt-2 text-sm text-stone-600">
-            These appear up front so offers stay aligned with your comfort level.
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input name="budgetMinCents" type="number" min="0" placeholder="Preferred lower range (USD)" />
+          <Input name="budgetMaxCents" type="number" min="0" placeholder="Preferred upper range (USD)" />
+        </div>
+
+        <Input name="expiresAt" type="datetime-local" />
+      </Card>
+
+      <Card as="section" className="space-y-5 p-6 sm:p-8">
+        <div className="space-y-3">
+          <Badge tone="success">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Safety settings
+          </Badge>
+          <p className="text-sm leading-7 text-slate-600">
+            These signals appear up front so incoming offers feel aligned from the start.
           </p>
         </div>
+
         <div className="space-y-3">
-          {SAFETY_OPTIONS.map((option) => (
-            <label key={option} className="flex items-center justify-between rounded-3xl border border-stone-200 px-4 py-3">
-              <span className="text-sm text-stone-800">{option}</span>
-              <input
-                type="checkbox"
-                checked={selectedSafety.includes(option)}
-                onChange={() => toggleSafety(option)}
-              />
-            </label>
-          ))}
+          {SAFETY_OPTIONS.map((option) => {
+            const checked = selectedSafety.includes(option);
+
+            return (
+              <label
+                key={option}
+                className="surface-subtle flex cursor-pointer items-center justify-between gap-4 px-4 py-4 transition hover:border-primary/30"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{option}</p>
+                  <p className="mt-1 text-xs text-slate-500">Visible in the experience details</p>
+                </div>
+                <span
+                  className={`flex h-6 w-11 items-center rounded-full p-1 transition ${
+                    checked ? "bg-primary/80" : "bg-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`h-4 w-4 rounded-full bg-white shadow-sm transition ${
+                      checked ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </span>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleSafety(option)}
+                  className="sr-only"
+                />
+              </label>
+            );
+          })}
         </div>
+
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? "Publishing..." : "Publish experience"}
         </Button>
-        {message ? <p className="text-sm text-rose-600">{message}</p> : null}
-      </section>
+
+        {message ? <p className="text-sm text-red-500">{message}</p> : null}
+      </Card>
     </form>
   );
 }

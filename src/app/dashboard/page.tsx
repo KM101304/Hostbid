@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Compass, MessageSquare, PlusCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/queries";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -17,67 +20,149 @@ export default async function DashboardPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-10 lg:grid-cols-2 lg:px-8">
-        <section className="rounded-[2rem] border border-stone-200 bg-white p-6">
-          <div className="flex items-center justify-between gap-4">
+      <main className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-8 lg:grid-cols-2 lg:px-8 lg:py-10">
+        <Card as="section" className="space-y-6 p-6 sm:p-8">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Your experiences</p>
-              <h1 className="mt-3 font-serif text-4xl text-stone-950">Hosted plans</h1>
+              <p className="section-eyebrow">Your experiences</p>
+              <h1 className="mt-3 text-[36px] font-bold tracking-[-0.04em] text-slate-900">Hosting hub</h1>
             </div>
             <Link href="/experiences/new">
               <Button>New experience</Button>
             </Link>
           </div>
-          <div className="mt-6 space-y-4">
-            {experiences.map((experience) => (
-              <Link
-                href={`/experiences/${experience.id}`}
-                key={experience.id}
-                className="block rounded-[1.5rem] border border-stone-200 p-4 hover:bg-stone-50"
-              >
-                <p className="text-xs uppercase tracking-[0.2em] text-stone-500">{experience.status}</p>
-                <p className="mt-2 text-lg font-semibold text-stone-950">{experience.title}</p>
-                <p className="mt-2 text-sm text-stone-600">
-                  {experience.location} · {formatDateTime(experience.created_at)}
-                </p>
-                <p className="mt-2 text-sm text-stone-500">
-                  {(experience.bids ?? []).filter((bid) => bid.status === "active").length} live offers
-                </p>
-              </Link>
-            ))}
-            {experiences.length === 0 ? (
-              <p className="rounded-[1.5rem] border border-dashed border-stone-300 p-5 text-sm text-stone-500">
-                You haven’t posted an experience yet.
-              </p>
-            ) : null}
-          </div>
-        </section>
 
-        <section className="rounded-[2rem] border border-stone-200 bg-white p-6">
-          <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Your offers</p>
-          <h2 className="mt-3 font-serif text-4xl text-stone-950">Competitive pool activity</h2>
-          <div className="mt-6 space-y-4">
-            {bids.map((bid) => (
-              <Link
-                href={bid.experiences ? `/experiences/${bid.experiences.id}` : "/"}
-                key={bid.id}
-                className="block rounded-[1.5rem] border border-stone-200 p-4 hover:bg-stone-50"
-              >
-                <p className="text-xs uppercase tracking-[0.2em] text-stone-500">{bid.status}</p>
-                <p className="mt-2 text-lg font-semibold text-stone-950">{bid.experiences?.title ?? "Offer"}</p>
-                <p className="mt-2 text-sm text-stone-600">
-                  {bid.experiences?.location ?? "Location private"} · {formatDateTime(bid.created_at)}
-                </p>
-                <p className="mt-2 text-sm text-stone-500">{formatCurrency(bid.amount_cents)} secured</p>
+          <div className="space-y-4">
+            {experiences.map((experience) => (
+              <Link href={`/experiences/${experience.id}`} key={experience.id}>
+                <Card as="article" hover className="p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="info">{experience.status}</Badge>
+                    <Badge tone="primary">
+                      {(experience.bids ?? []).filter((bid) => bid.status === "active").length} active offers
+                    </Badge>
+                  </div>
+                  <p className="mt-4 text-[24px] font-semibold tracking-[-0.03em] text-slate-900">
+                    {experience.title}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {experience.location} · {formatDateTime(experience.created_at)}
+                  </p>
+                </Card>
               </Link>
             ))}
-            {bids.length === 0 ? (
-              <p className="rounded-[1.5rem] border border-dashed border-stone-300 p-5 text-sm text-stone-500">
-                You have not submitted any offers yet.
-              </p>
+
+            {experiences.length === 0 ? (
+              <Card className="space-y-5 border-dashed p-5 sm:p-6">
+                <div className="space-y-2">
+                  <Badge tone="primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Ready to host
+                  </Badge>
+                  <p className="text-lg font-semibold tracking-[-0.02em] text-slate-900">
+                    Your first listing will set the tone for the whole marketplace.
+                  </p>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Lead with atmosphere, add your boundaries, and give people a reason to trust the energy before they
+                    bid.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Link href="/experiences/new">
+                    <Card as="div" className="h-full p-4">
+                      <div className="flex items-center gap-2 text-slate-900">
+                        <PlusCircle className="h-4 w-4 text-primary" />
+                        <p className="text-sm font-semibold">Start a new experience</p>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Draft the title, vibe, timing, and safety details in one pass.
+                      </p>
+                    </Card>
+                  </Link>
+                  <Link href="/profile">
+                    <Card as="div" className="h-full p-4">
+                      <div className="flex items-center gap-2 text-slate-900">
+                        <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                        <p className="text-sm font-semibold">Strengthen your profile</p>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Add your identity signals first so the first offer lands with context.
+                      </p>
+                    </Card>
+                  </Link>
+                </div>
+              </Card>
             ) : null}
           </div>
-        </section>
+        </Card>
+
+        <Card as="section" className="space-y-6 p-6 sm:p-8">
+          <div>
+            <p className="section-eyebrow">Your offers</p>
+            <h2 className="mt-3 text-[36px] font-bold tracking-[-0.04em] text-slate-900">Offer activity</h2>
+          </div>
+
+          <div className="space-y-4">
+            {bids.map((bid) => (
+              <Link href={bid.experiences ? `/experiences/${bid.experiences.id}` : "/"} key={bid.id}>
+                <Card as="article" hover className="p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="primary">{bid.status === "accepted" ? "Accepted" : bid.status}</Badge>
+                    <Badge tone="warning">Offer secured</Badge>
+                  </div>
+                  <p className="mt-4 text-[24px] font-semibold tracking-[-0.03em] text-slate-900">
+                    {bid.experiences?.title ?? "Offer"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {bid.experiences?.location ?? "Location private"} · {formatDateTime(bid.created_at)}
+                  </p>
+                  <p className="mt-3 text-sm text-slate-500">{formatCurrency(bid.amount_cents)} authorized</p>
+                </Card>
+              </Link>
+            ))}
+
+            {bids.length === 0 ? (
+              <Card className="space-y-5 border-dashed p-5 sm:p-6">
+                <div className="space-y-2">
+                  <Badge tone="info">
+                    <Compass className="h-3.5 w-3.5" />
+                    Quiet for now
+                  </Badge>
+                  <p className="text-lg font-semibold tracking-[-0.02em] text-slate-900">
+                    Offer activity appears once you start exploring live experiences.
+                  </p>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Browse what is live, refine your profile, and thoughtful offers will begin collecting here.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Link href="/">
+                    <Card as="div" className="h-full p-4">
+                      <div className="flex items-center gap-2 text-slate-900">
+                        <Compass className="h-4 w-4 text-sky-500" />
+                        <p className="text-sm font-semibold">Check discovery</p>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        See what is open, active, and currently accepting offers.
+                      </p>
+                    </Card>
+                  </Link>
+                  <Link href="/messages">
+                    <Card as="div" className="h-full p-4">
+                      <div className="flex items-center gap-2 text-slate-900">
+                        <MessageSquare className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm font-semibold">Watch conversations</p>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Accepted offers unlock message threads here once a plan moves forward.
+                      </p>
+                    </Card>
+                  </Link>
+                </div>
+              </Card>
+            ) : null}
+          </div>
+        </Card>
       </main>
     </AppShell>
   );

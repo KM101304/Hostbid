@@ -1,9 +1,25 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { getRequiredEnv, getPlatformFeePercent } from "@/lib/env";
+import { getPlatformFeePercent, hasEnv } from "@/lib/env";
 
-export const stripe = new Stripe(getRequiredEnv("STRIPE_SECRET_KEY"));
+let stripeInstance: Stripe | null = null;
+
+export function hasStripeEnv() {
+  return hasEnv("STRIPE_SECRET_KEY");
+}
+
+export function getStripe() {
+  if (!hasStripeEnv()) {
+    throw new Error("Stripe is not configured yet.");
+  }
+
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  }
+
+  return stripeInstance;
+}
 
 export function calculatePlatformFee(amountCents: number) {
   return Math.round((amountCents * getPlatformFeePercent()) / 100);

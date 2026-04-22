@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequiredEnv } from "@/lib/env";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   const payload = await request.text();
@@ -13,6 +13,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const stripe = getStripe();
     const event = stripe.webhooks.constructEvent(
       payload,
       signature,

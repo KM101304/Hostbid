@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
-
-const manrope = Manrope({
-  variable: "--font-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   title: "HostBid",
-  description: "A premium experience-led dating marketplace with escrowed offers and human choice.",
+  description: "A premium social platform for curated experiences, thoughtful offers, and trusted connections.",
 };
 
 export default function RootLayout({
@@ -23,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${manrope.variable}`}>
+    <html lang="en" className={inter.variable}>
       <body>{children}</body>
     </html>
   );

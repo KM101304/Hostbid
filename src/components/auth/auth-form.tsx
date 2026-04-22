@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 
 type AuthMode = "login" | "signup";
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
-  const supabase = createSupabaseBrowserClient();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +23,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     event.preventDefault();
     setLoading(true);
     setMessage(null);
+
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      setMessage("Authentication is not configured yet.");
+      setLoading(false);
+      return;
+    }
 
     const response =
       mode === "signup"
@@ -52,6 +62,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setLoading(true);
     setMessage(null);
 
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      setMessage("Authentication is not configured yet.");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -66,57 +84,75 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-[2rem] border border-stone-200 bg-white p-8 shadow-[0_24px_70px_-32px_rgba(36,27,17,0.35)]">
-      <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.24em] text-stone-500">
-          {mode === "signup" ? "Join HostBid" : "Welcome back"}
-        </p>
-        <h1 className="font-serif text-4xl tracking-tight text-stone-950">
-          {mode === "signup" ? "Build a profile worth selecting." : "Step back into the marketplace."}
-        </h1>
+    <Card as="section" className="fade-slide space-y-6 p-8 sm:p-10">
+      <div className="space-y-3">
+        <Badge tone="primary">
+          <Sparkles className="h-3.5 w-3.5" />
+          {mode === "signup" ? "Join the community" : "Member access"}
+        </Badge>
+        <div className="space-y-2">
+          <p className="page-title text-[36px] sm:text-[48px]">
+            {mode === "signup" ? "Create a profile people feel good choosing." : "Return to your experience circle."}
+          </p>
+          <p className="text-base leading-7 text-slate-600">
+            {mode === "signup"
+              ? "Share who you are, what kind of moments you enjoy hosting, and the signals that build trust."
+              : "Manage experiences, review offers with context, and pick up conversations once a match is accepted."}
+          </p>
+        </div>
       </div>
 
-      {mode === "signup" ? (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {mode === "signup" ? (
+          <Input
+            placeholder="Full name"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
+            required
+          />
+        ) : null}
+
         <Input
-          placeholder="Full name"
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           required
         />
-      ) : null}
 
-      <Input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        required
-      />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+          minLength={8}
+        />
 
-      <Input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        required
-        minLength={8}
-      />
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Working..." : mode === "signup" ? "Create account" : "Log in"}
+        </Button>
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Working..." : mode === "signup" ? "Create account" : "Log in"}
-      </Button>
+        <Button type="button" variant="secondary" className="w-full" onClick={handleGoogle} disabled={loading}>
+          Continue with Google
+        </Button>
 
-      <Button type="button" variant="secondary" className="w-full" onClick={handleGoogle} disabled={loading}>
-        Continue with Google
-      </Button>
-
-      {message ? <p className="text-sm text-rose-600">{message}</p> : null}
+        {message ? <p className="text-sm text-red-500">{message}</p> : null}
+      </form>
 
       <Textarea
         readOnly
-        value="Funds are only authorized when you place an offer. The poster still makes the final decision."
-        className="min-h-0 border-dashed bg-stone-50 text-stone-600"
+        value="Offers are only authorized when submitted. Funds are captured only if the experience host accepts."
+        className="min-h-0 resize-none border-dashed bg-slate-50 text-slate-600"
       />
-    </form>
+
+      <div className="flex flex-wrap gap-2">
+        <Badge tone="success">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Trust-first onboarding
+        </Badge>
+        <Badge tone="info">Soft verification signals</Badge>
+      </div>
+    </Card>
   );
 }

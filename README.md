@@ -10,6 +10,7 @@ HostBid is a production-oriented MVP for a premium, experience-first dating mark
 - Supabase Auth + Postgres
 - Stripe Payment Intents + optional Stripe Connect destination charges
 - Supabase Realtime subscriptions
+- Vercel-ready deployment
 
 ## Folder structure
 
@@ -101,6 +102,36 @@ Optional checks:
 npm run lint
 npm run typecheck
 ```
+
+## Deploying to Vercel
+
+1. Push this repo to GitHub.
+2. In Vercel, click `Add New Project` and import the repository.
+3. Keep the default framework preset as `Next.js`.
+4. In the Vercel project settings, add these environment variables for `Production` and `Preview`:
+   - `NEXT_PUBLIC_APP_URL`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `STRIPE_SECRET_KEY`
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `HOSTBID_PLATFORM_FEE_PERCENT`
+5. Set `NEXT_PUBLIC_APP_URL` to your Vercel domain:
+   - Preview example: `https://your-project-git-branch-your-team.vercel.app`
+   - Production example: `https://your-project.vercel.app`
+6. In Supabase Auth, add your Vercel URLs to:
+   - Site URL
+   - Redirect URLs
+   - Include `/api/auth/callback`
+7. In Stripe, create webhook endpoints for your deployed Vercel URLs:
+   - `https://your-project.vercel.app/api/stripe/webhooks`
+   - Optionally a preview webhook endpoint if you test against previews
+8. Redeploy after env vars are saved.
+
+## Important deployment note
+
+The app imports Stripe server-side and will fail builds if `STRIPE_SECRET_KEY` is missing. On Vercel, make sure Stripe env vars are present before the first production build.
 
 ## Core flows shipped
 

@@ -37,9 +37,9 @@ export function formatRelativeWindow(start?: string | null, end?: string | null)
 }
 
 export function interestLabel(activeBidCount: number) {
-  if (activeBidCount >= 8) return "Highly sought after";
-  if (activeBidCount >= 4) return "Strong interest";
-  if (activeBidCount >= 2) return "Growing interest";
-  if (activeBidCount >= 1) return "First offers arriving";
-  return "New listing";
+  if (activeBidCount >= 8) return "Top Offer";
+  if (activeBidCount >= 4) return "High Interest";
+  if (activeBidCount >= 2) return "Standard Interest";
+  if (activeBidCount >= 1) return "First Offer In";
+  return "New Experience";
 }

@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
+import { ShieldCheck, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 
@@ -79,30 +82,62 @@ function BidPaymentInner({ experienceId }: { experienceId: string }) {
       return;
     }
 
-    setMessage("Offer secured. The poster can now review it.");
+    setMessage("Offer secured. The host can now review it.");
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-[2rem] border border-stone-200 bg-white p-6">
-      <div>
-        <p className="text-sm uppercase tracking-[0.22em] text-stone-500">Submit an offer</p>
-        <h2 className="mt-2 font-serif text-3xl text-stone-950">Lead with taste, not just spend.</h2>
+    <Card as="form" onSubmit={handleSubmit} className="space-y-5 p-6 sm:p-7">
+      <div className="space-y-3">
+        <Badge tone="primary">
+          <Sparkles className="h-3.5 w-3.5" />
+          Submit an offer
+        </Badge>
+        <div>
+          <h2 className="text-[32px] font-bold tracking-[-0.04em] text-slate-900">Lead with clarity and fit.</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            Share why you match the experience, then authorize your offer for review.
+          </p>
+        </div>
       </div>
-      <Input type="number" min="10" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <Textarea value={pitch} onChange={(e) => setPitch(e.target.value)} placeholder="Why your hosting style fits this experience." />
-      <div className="rounded-[1.5rem] bg-stone-100 p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Authorization hold</p>
-        <p className="mt-2 text-lg font-semibold text-stone-950">{formatCurrency(amountCents)}</p>
-        <p className="mt-2 text-sm text-stone-600">
-          Funds are held now, captured only if you are selected, and released if you are not.
+
+      <Input
+        type="number"
+        min="10"
+        step="1"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Offer amount in USD"
+      />
+      <Textarea
+        value={pitch}
+        onChange={(e) => setPitch(e.target.value)}
+        placeholder="What would make your hosting style feel thoughtful, comfortable, and memorable?"
+      />
+
+      <div className="surface-subtle space-y-2 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Authorization hold</p>
+          <Badge tone="success">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Secure
+          </Badge>
+        </div>
+        <p className="text-2xl font-semibold tracking-[-0.03em] text-slate-900">{formatCurrency(amountCents)}</p>
+        <p className="text-sm leading-6 text-slate-600">
+          Funds are held now, captured only if you are accepted, and released if you are not selected.
         </p>
       </div>
-      <PaymentElement />
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <PaymentElement />
+      </div>
+
       <Button type="submit" className="w-full" disabled={submitting || !stripe || !elements}>
-        {submitting ? "Securing offer..." : "Authorize and submit bid"}
+        {submitting ? "Securing offer..." : "Submit offer"}
       </Button>
-      {message ? <p className="text-sm text-stone-600">{message}</p> : null}
-    </form>
+
+      {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+    </Card>
   );
 }
 
@@ -113,9 +148,9 @@ export function BidPaymentForm({
 }) {
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
     return (
-      <div className="rounded-[2rem] border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-800">
-        Add `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` to enable bid authorization.
-      </div>
+      <Card className="border-dashed p-5 text-sm text-amber-700">
+        Add `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` to enable offer authorization.
+      </Card>
     );
   }
 

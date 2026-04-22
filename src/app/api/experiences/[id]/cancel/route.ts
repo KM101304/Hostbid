@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { canCancelAwardedExperience } from "@/lib/marketplace";
+import { getStripe } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { stripe } from "@/lib/stripe";
 
 export async function POST(
   _request: Request,
@@ -12,6 +12,7 @@ export async function POST(
     const { id } = await params;
     const user = await requireUser();
     const admin = createSupabaseAdminClient();
+    const stripe = getStripe();
     const { data: experience } = await admin.from("experiences").select("*").eq("id", id).maybeSingle();
 
     if (!experience) {

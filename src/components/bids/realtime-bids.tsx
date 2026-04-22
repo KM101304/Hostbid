@@ -9,6 +9,11 @@ export function RealtimeBids({ experienceId }: { experienceId: string }) {
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
     const channel = supabase
       .channel(`experience-bids-${experienceId}`)
       .on(

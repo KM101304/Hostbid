@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { calculatePlatformFee, getStripe } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { stripe, calculatePlatformFee } from "@/lib/stripe";
 import { bidIntentSchema } from "@/lib/validators";
 
 export async function GET(
@@ -66,6 +66,7 @@ export async function POST(
     const { id } = await params;
     const user = await requireUser();
     const admin = createSupabaseAdminClient();
+    const stripe = getStripe();
     const body = await request.json();
     const parsed = bidIntentSchema.parse(body);
 
