@@ -37,6 +37,7 @@ export function MessageComposer({ threadId }: { threadId: string }) {
   return (
     <Card as="form" onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
       <Textarea
+        aria-label="Message"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Share a thoughtful next step, confirm details, or keep the conversation comfortable and clear."

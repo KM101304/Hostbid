@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { canCancelAwardedExperience } from "@/lib/marketplace";
-import { getStripe } from "@/lib/stripe";
+import { refundDestinationChargePaymentIntent } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -12,7 +12,6 @@ export async function POST(
     const { id } = await params;
     const user = await requireUser();
     const admin = createSupabaseAdminClient();
-    const stripe = getStripe();
     const { data: experience } = await admin.from("experiences").select("*").eq("id", id).maybeSingle();
 
     if (!experience) {
@@ -30,7 +29,7 @@ export async function POST(
     const { data: selectedBid } = await admin.from("bids").select("*").eq("id", experience.selected_bid_id).maybeSingle();
 
     if (selectedBid?.payment_intent_id) {
-      await stripe.refunds.create({ payment_intent: selectedBid.payment_intent_id });
+      await refundDestinationChargePaymentIntent(selectedBid.payment_intent_id);
       await admin
         .from("bids")
         .update({ status: "refunded", refunded_at: new Date().toISOString() })

@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+const isoDateTimeField = z
+  .string()
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => {
+    if (!value) {
+      return "";
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error("Invalid date.");
+    }
+
+    return parsed.toISOString();
+  });
+
 export const profileSchema = z.object({
   fullName: z.string().min(2).max(80),
   age: z.coerce.number().int().min(18).max(100),
@@ -7,8 +25,9 @@ export const profileSchema = z.object({
   location: z.string().min(2).max(120),
   avatarUrl: z.string().url().optional().or(z.literal("")),
   photoUrls: z.array(z.string().url()).max(6).default([]),
-  isVerified: z.boolean().default(false),
   stripeConnectAccountId: z.string().optional().or(z.literal("")),
+  verificationStatus: z.enum(["not_started", "pending", "verified", "rejected"]).optional(),
+  verificationSelfieUrl: z.string().url().optional().or(z.literal("")),
 });
 
 export const experienceSchema = z.object({
@@ -16,18 +35,56 @@ export const experienceSchema = z.object({
   description: z.string().min(30).max(1500),
   location: z.string().min(2).max(160),
   vibeSummary: z.string().min(6).max(160),
-  dateWindowStart: z.string().datetime().optional().or(z.literal("")),
-  dateWindowEnd: z.string().datetime().optional().or(z.literal("")),
-  budgetMinCents: z.coerce.number().int().min(0).optional(),
-  budgetMaxCents: z.coerce.number().int().min(0).optional(),
-  expiresAt: z.string().datetime().optional().or(z.literal("")),
+  dateWindowStart: isoDateTimeField,
+  dateWindowEnd: isoDateTimeField,
+  startingBidCents: z.coerce.number().int().min(1000).optional(),
+  expiresAt: isoDateTimeField,
   safetyPreferences: z.array(z.string()).default([]),
+}).superRefine((value, ctx) => {
+  const start = value.dateWindowStart ? new Date(value.dateWindowStart) : null;
+  const end = value.dateWindowEnd ? new Date(value.dateWindowEnd) : null;
+  const expiresAt = value.expiresAt ? new Date(value.expiresAt) : null;
+
+  if (start && end && end <= start) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["dateWindowEnd"],
+      message: "End time must be after the start time.",
+    });
+  }
+
+  if (expiresAt && start && expiresAt >= start) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["expiresAt"],
+      message: "Offer deadline should be before the experience starts.",
+    });
+  }
+
+  if (expiresAt && expiresAt <= new Date()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["expiresAt"],
+      message: "Offer deadline needs to be in the future.",
+    });
+  }
 });
 
 export const bidIntentSchema = z.object({
   amountCents: z.coerce.number().int().min(1000).max(1000000),
   pitch: z.string().min(12).max(280),
   paymentIntentId: z.string().optional(),
+  paymentMode: z.enum(["secured", "unsecured"]).optional(),
+});
+
+export const locationShareSchema = z.object({
+  durationMinutes: z.coerce.number().int().min(15).max(240).default(120),
+});
+
+export const locationUpdateSchema = z.object({
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+  accuracyMeters: z.coerce.number().min(0).max(100000).optional(),
 });
 
 export const messageSchema = z.object({

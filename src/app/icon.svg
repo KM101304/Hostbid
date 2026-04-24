@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="hostbidGradient" x1="18" y1="12" x2="110" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fda4af" />
+      <stop offset="0.5" stop-color="#ec4899" />
+      <stop offset="1" stop-color="#0f172a" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="#fff8fb" />
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#hostbidGradient)" />
+  <path d="M38 33h14v23h24V33h14v62H76V70H52v25H38V33Z" fill="white" />
+  <circle cx="91" cy="38" r="8" fill="#fff1f2" />
+</svg>

@@ -13,13 +13,13 @@ type DiscoveryExperience = {
   date_window_start: string | null;
   date_window_end: string | null;
   budget_min_cents: number | null;
-  budget_max_cents: number | null;
   status: string;
   created_at: string;
   profiles: {
     id: string;
     full_name: string | null;
     avatar_url: string | null;
+    photo_urls: string[] | null;
     is_verified: boolean;
     location: string | null;
     quality_score: number;
@@ -59,6 +59,12 @@ export async function getDiscoveryExperiences() {
     return [];
   }
 
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    return [];
+  }
+
   const admin = createSupabaseAdminClient();
   const { data } = await admin
     .from("experiences")
@@ -69,11 +75,12 @@ export async function getDiscoveryExperiences() {
           id,
           full_name,
           avatar_url,
+          photo_urls,
           is_verified,
           location,
           quality_score
         ),
-        bids (
+        bids!bids_experience_id_fkey (
           id,
           status
         )
@@ -112,7 +119,10 @@ export async function getExperienceDetail(experienceId: string) {
           location,
           quality_score,
           is_verified,
-          photo_urls
+          photo_urls,
+          stripe_connect_account_id,
+          stripe_charges_enabled,
+          stripe_payouts_enabled
         )
       `,
     )
@@ -191,7 +201,7 @@ export async function getDashboardData(userId: string) {
   const [{ data: experiences }, { data: bids }] = await Promise.all([
     admin
       .from("experiences")
-      .select("*, bids(id, status)")
+      .select("*, bids!bids_experience_id_fkey(id, status)")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(DASHBOARD_SECTION_SIZE),

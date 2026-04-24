@@ -1,14 +1,16 @@
 "use client";
-
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Camera, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, ExternalLink, ScanFace, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
 import { computeProfileQualityScore } from "@/lib/marketplace";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
+import { PhotoUrlField } from "@/components/profile/photo-url-field";
+import { RemoteImage } from "@/components/ui/remote-image";
+import { formatCurrency } from "@/lib/utils";
+import { LocationShareCard } from "@/components/safety/location-share-card";
 
 type ProfileFormProps = {
   profile: {
@@ -18,8 +20,9 @@ type ProfileFormProps = {
     location: string | null;
     avatar_url: string | null;
     photo_urls: string[];
-    is_verified: boolean;
     stripe_connect_account_id: string | null;
+    verification_status?: string | null;
+    verification_selfie_url?: string | null;
   } | null;
 };
 
@@ -29,7 +32,28 @@ type StripeConnectState = {
   onboardingComplete: boolean;
   payoutsEnabled: boolean;
   chargesEnabled?: boolean;
+  balanceAvailableCents?: number;
+  balancePendingCents?: number;
 };
+
+function getInitialStripeMessage() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const stripeParam = params.get("stripe");
+
+  if (stripeParam === "connected") {
+    return "Stripe setup completed. Your payouts can now flow automatically when you accept a winning bid.";
+  }
+
+  if (stripeParam === "refresh") {
+    return "Stripe setup was refreshed. Finish the remaining steps to enable payouts.";
+  }
+
+  return null;
+}
 
 export function ProfileForm({ profile }: ProfileFormProps) {
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
@@ -37,13 +61,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [location, setLocation] = useState(profile?.location ?? "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? "");
-  const [photoUrls, setPhotoUrls] = useState((profile?.photo_urls ?? []).join("\n"));
-  const [isVerified, setIsVerified] = useState(profile?.is_verified ?? false);
+  const [photoUrls, setPhotoUrls] = useState(profile?.photo_urls ?? []);
+  const [verificationStatus, setVerificationStatus] = useState(profile?.verification_status ?? "not_started");
+  const [verificationSelfieUrl, setVerificationSelfieUrl] = useState(profile?.verification_selfie_url ?? "");
   const [stripeConnectAccountId, setStripeConnectAccountId] = useState(
     profile?.stripe_connect_account_id ?? "",
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [stripeMessage, setStripeMessage] = useState<string | null>(null);
+  const [stripeMessage, setStripeMessage] = useState<string | null>(() => getInitialStripeMessage());
   const [saving, setSaving] = useState(false);
   const [connectingStripe, setConnectingStripe] = useState(false);
   const [stripeState, setStripeState] = useState<StripeConnectState>({
@@ -52,6 +77,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     onboardingComplete: false,
     payoutsEnabled: false,
   });
+  const leadPhotoUrl = photoUrls[0] || avatarUrl;
 
   const score = useMemo(
     () =>
@@ -60,29 +86,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         age: age ? Number(age) : null,
         bio,
         location,
-        avatar_url: avatarUrl,
-        photo_urls: photoUrls.split("\n").filter(Boolean),
-        is_verified: isVerified,
+        avatar_url: leadPhotoUrl,
+        photo_urls: photoUrls,
       }),
-    [age, avatarUrl, bio, fullName, isVerified, location, photoUrls],
+    [age, bio, fullName, leadPhotoUrl, location, photoUrls],
   );
-  const hasStartedProfile = Boolean(fullName || location || bio || avatarUrl || photoUrls.trim() || age);
+  const hasStartedProfile = Boolean(fullName || location || bio || leadPhotoUrl || photoUrls.length || age);
   const profileHeading = fullName || (hasStartedProfile ? "Your profile is taking shape" : "Start with a few trust signals");
   const profileMeta = [location || "Add a home base", age ? `Age ${age}` : null].filter(Boolean).join(" · ");
   const profileBadgeLabel = score > 0 ? `Profile ${score}` : "In progress";
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const stripeParam = params.get("stripe");
-
-    if (stripeParam === "connected") {
-      setStripeMessage("Stripe setup completed. Your payouts can now flow automatically when you accept a winning bid.");
-    }
-
-    if (stripeParam === "refresh") {
-      setStripeMessage("Stripe setup was refreshed. Finish the remaining steps to enable payouts.");
-    }
-  }, []);
 
   useEffect(() => {
     async function fetchStripeStatus() {
@@ -100,6 +112,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         onboardingComplete: payload.onboardingComplete,
         payoutsEnabled: payload.payoutsEnabled,
         chargesEnabled: payload.chargesEnabled,
+        balanceAvailableCents: payload.balanceAvailableCents,
+        balancePendingCents: payload.balancePendingCents,
       });
       setStripeConnectAccountId(payload.accountId ?? "");
     }
@@ -122,10 +136,11 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         age,
         bio,
         location,
-        avatarUrl,
-        photoUrls: photoUrls.split("\n").filter(Boolean),
-        isVerified,
+        avatarUrl: leadPhotoUrl,
+        photoUrls,
         stripeConnectAccountId,
+        verificationStatus,
+        verificationSelfieUrl,
       }),
     });
 
@@ -168,6 +183,19 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       ? "Open Stripe dashboard"
       : "Continue Stripe setup";
 
+  function submitFacialVerification() {
+    const selfieUrl = leadPhotoUrl;
+
+    if (!selfieUrl) {
+      setMessage("Add a clear face photo before submitting facial verification.");
+      return;
+    }
+
+    setVerificationSelfieUrl(selfieUrl);
+    setVerificationStatus("pending");
+    setMessage("Facial verification is ready to submit. Save your profile to send it for review.");
+  }
+
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <Card as="section" className="space-y-5 p-6 sm:p-8">
@@ -185,28 +213,36 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Input placeholder="Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          <Input placeholder="Age" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
+          <Input aria-label="Name" placeholder="Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          <Input aria-label="Age" placeholder="Age" type="number" min="18" max="100" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} required />
         </div>
-        <Input placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
-        <Input placeholder="Avatar URL" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
+        <Input aria-label="Location" placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
         <Textarea
+          aria-label="Bio"
           placeholder="Write a calm, specific bio that tells people how you show up."
           value={bio}
           onChange={(e) => setBio(e.target.value)}
+          required
         />
-        <Textarea
-          placeholder="Photo URLs, one per line"
-          value={photoUrls}
-          onChange={(e) => setPhotoUrls(e.target.value)}
+        <PhotoUrlField
+          urls={photoUrls}
+          onChange={setPhotoUrls}
+          onPrimaryChange={(url) => {
+            if (url) {
+              setAvatarUrl(url);
+            }
+          }}
         />
+        <p className="text-sm leading-6 text-slate-500">
+          Your first photo becomes your main profile image across offers, chat, and feed cards.
+        </p>
       </Card>
 
       <div className="space-y-6">
         <Card as="section" className="space-y-5 p-6 sm:p-8">
           <div className="flex items-center gap-4">
             <Avatar
-              src={avatarUrl}
+              src={leadPhotoUrl}
               alt={fullName || "Profile"}
               className="h-24 w-24"
               fallback={fullName.slice(0, 1)}
@@ -216,12 +252,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               <p className="mt-1 text-sm text-slate-500">{profileMeta}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="info">{profileBadgeLabel}</Badge>
-                {isVerified ? (
-                  <Badge tone="success">
-                    <BadgeCheck className="h-3.5 w-3.5" />
-                    Verified
-                  </Badge>
-                ) : null}
               </div>
             </div>
           </div>
@@ -244,11 +274,28 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               </div>
             </Card>
           ) : null}
+          <Card as="section" className="space-y-4 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ScanFace className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold text-slate-900">Facial verification</p>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Submit your lead face photo for manual verification review. We show the trust signal only after review is approved.
+                </p>
+              </div>
+              <Badge tone={verificationStatus === "verified" ? "success" : verificationStatus === "pending" ? "info" : "default"}>
+                {verificationStatus === "not_started" ? "Not started" : verificationStatus}
+              </Badge>
+            </div>
+            <Button type="button" variant="secondary" className="w-full gap-2" onClick={submitFacialVerification}>
+              <ScanFace className="h-4 w-4" />
+              Submit facial verification
+            </Button>
+          </Card>
 
-          <label className="surface-subtle flex items-center justify-between gap-4 px-4 py-4 text-sm font-medium text-slate-800">
-            Verification badge
-            <input type="checkbox" checked={isVerified} onChange={(e) => setIsVerified(e.target.checked)} />
-          </label>
+          <LocationShareCard />
 
           <Card as="section" className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-4">
@@ -258,7 +305,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                   <p className="text-sm font-semibold text-slate-900">Stripe payouts</p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Connect Stripe once so accepted bids can route to you automatically and HostBid can keep the platform fee.
+                  Connect Stripe once so accepted bids can route to you automatically and HostBid can keep the platform fee. You do not need an existing Stripe dashboard account first.
                 </p>
               </div>
               <Badge tone={stripeState.payoutsEnabled ? "success" : stripeState.connected ? "info" : "default"}>
@@ -268,7 +315,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
             <div className="rounded-2xl bg-slate-50/90 p-4 text-sm leading-6 text-slate-600">
               {!stripeState.connected
-                ? "You have not connected payouts yet. Right now the platform can still capture a winning bid, but your automatic payout route is not finished."
+                ? "You have not connected payouts yet. When HostBid payouts are enabled, this button will walk you through Stripe's setup flow and create the payout account for you."
                 : stripeState.payoutsEnabled
                   ? "Your payout route is ready. When you accept a winning bid, Stripe can route the funds to you with the HostBid fee preserved."
                   : "Your Stripe account exists, but there are still onboarding steps left before payouts are fully enabled."}
@@ -288,33 +335,69 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             {stripeMessage ? <p className="text-sm text-slate-600">{stripeMessage}</p> : null}
           </Card>
 
+          <Card as="section" className="space-y-4 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <WalletCards className="h-4 w-4 text-sky-600" />
+                  <p className="text-sm font-semibold text-slate-900">Payout balances</p>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  This shows what Stripe has available to pay out and what is still pending settlement on your connected account.
+                </p>
+              </div>
+              <Badge tone={stripeState.payoutsEnabled ? "success" : "default"}>
+                {stripeState.connected ? "Live Stripe data" : "Connect first"}
+              </Badge>
+            </div>
+
+            {stripeState.connected ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Available</p>
+                  <p className="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-slate-900">
+                    {formatCurrency(stripeState.balanceAvailableCents ?? 0)}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">Ready for Stripe to include in the next payout cycle.</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Pending</p>
+                  <p className="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-slate-900">
+                    {formatCurrency(stripeState.balancePendingCents ?? 0)}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">Authorized or recently captured funds still moving through settlement.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-slate-50/90 p-4 text-sm leading-6 text-slate-600">
+                Connect Stripe payouts first and this section will start showing your available and pending balances automatically.
+              </div>
+            )}
+          </Card>
+
           <Button type="submit" className="w-full" disabled={saving}>
             {saving ? "Saving..." : "Save profile"}
           </Button>
           {message ? <p className="text-sm text-slate-600">{message}</p> : null}
         </Card>
 
-        {photoUrls.split("\n").filter(Boolean).length > 0 ? (
+        {photoUrls.length > 0 ? (
           <Card as="section" className="space-y-4 p-6">
             <div className="flex items-center gap-2">
               <Camera className="h-4 w-4 text-slate-500" />
               <p className="text-sm font-semibold text-slate-700">Photo preview</p>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {photoUrls
-                .split("\n")
-                .filter(Boolean)
-                .slice(0, 3)
-                .map((url) => (
-                  <Image
-                    key={url}
-                    src={url}
-                    alt="Profile preview"
-                    width={320}
-                    height={224}
-                    className="h-40 w-full rounded-2xl object-cover"
-                  />
-                ))}
+              {photoUrls.slice(0, 3).map((url) => (
+                <RemoteImage
+                  key={url}
+                  src={url}
+                  alt="Profile preview"
+                  width={320}
+                  height={224}
+                  className="h-40 w-full rounded-2xl object-cover"
+                />
+              ))}
             </div>
           </Card>
         ) : null}

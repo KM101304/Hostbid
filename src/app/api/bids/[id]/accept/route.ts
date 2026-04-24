@@ -11,7 +11,6 @@ export async function POST(
     const { id } = await params;
     const user = await requireUser();
     const admin = createSupabaseAdminClient();
-    const stripe = getStripe();
 
     const { data: bid } = await admin
       .from("bids")
@@ -31,11 +30,14 @@ export async function POST(
       throw new Error("This bid is not actionable.");
     }
 
-    try {
-      await stripe.paymentIntents.capture(bid.payment_intent_id);
-    } catch {
-      await admin.from("bids").update({ status: "capture_failed" }).eq("id", bid.id);
-      return NextResponse.json({ error: "Payment capture failed. Please choose another bid." }, { status: 402 });
+    if (bid.payment_intent_id) {
+      const stripe = getStripe();
+      try {
+        await stripe.paymentIntents.capture(bid.payment_intent_id);
+      } catch {
+        await admin.from("bids").update({ status: "capture_failed" }).eq("id", bid.id);
+        return NextResponse.json({ error: "Payment capture failed. Please choose another bid." }, { status: 402 });
+      }
     }
 
     const { data: losingBids } = await admin
@@ -46,7 +48,10 @@ export async function POST(
       .eq("status", "active");
 
     for (const losingBid of losingBids ?? []) {
-      await stripe.paymentIntents.cancel(losingBid.payment_intent_id);
+      if (losingBid.payment_intent_id) {
+        const stripe = getStripe();
+        await stripe.paymentIntents.cancel(losingBid.payment_intent_id);
+      }
       await admin.from("bids").update({ status: "refunded", refunded_at: new Date().toISOString() }).eq("id", losingBid.id);
     }
 

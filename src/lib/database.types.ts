@@ -16,12 +16,16 @@ export type Database = {
           created_at: string;
           experience_id: string;
           id: string;
-          payment_intent_id: string;
+          payment_intent_id: string | null;
           pitch: string;
           bidder_id: string;
           refunded_at: string | null;
           status: string;
           updated_at: string;
+          verification_reviewed_at: string | null;
+          verification_selfie_url: string | null;
+          verification_status: string;
+          verification_submitted_at: string | null;
         };
         Insert: {
           amount_cents: number;
@@ -29,12 +33,16 @@ export type Database = {
           created_at?: string;
           experience_id: string;
           id?: string;
-          payment_intent_id: string;
+          payment_intent_id?: string | null;
           pitch: string;
           bidder_id: string;
           refunded_at?: string | null;
           status?: string;
           updated_at?: string;
+          verification_reviewed_at?: string | null;
+          verification_selfie_url?: string | null;
+          verification_status?: string;
+          verification_submitted_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["bids"]["Insert"]>;
         Relationships: [
@@ -181,9 +189,18 @@ export type Database = {
           location: string | null;
           photo_urls: string[];
           quality_score: number;
+          stripe_charges_enabled: boolean;
           stripe_connect_account_id: string | null;
           stripe_customer_id: string | null;
+          stripe_onboarding_complete: boolean;
+          stripe_payouts_enabled: boolean;
+          stripe_requirements_currently_due: string[];
+          stripe_requirements_disabled_reason: string | null;
           updated_at: string;
+          verification_reviewed_at: string | null;
+          verification_selfie_url: string | null;
+          verification_status: string;
+          verification_submitted_at: string | null;
         };
         Insert: {
           age?: number | null;
@@ -196,9 +213,18 @@ export type Database = {
           location?: string | null;
           photo_urls?: string[];
           quality_score?: number;
+          stripe_charges_enabled?: boolean;
           stripe_connect_account_id?: string | null;
           stripe_customer_id?: string | null;
+          stripe_onboarding_complete?: boolean;
+          stripe_payouts_enabled?: boolean;
+          stripe_requirements_currently_due?: string[];
+          stripe_requirements_disabled_reason?: string | null;
           updated_at?: string;
+          verification_reviewed_at?: string | null;
+          verification_selfie_url?: string | null;
+          verification_status?: string;
+          verification_submitted_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
@@ -247,6 +273,36 @@ export type Database = {
           unlocked_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["threads"]["Insert"]>;
+        Relationships: [];
+      };
+      location_shares: {
+        Row: {
+          created_at: string;
+          expires_at: string;
+          id: string;
+          is_active: boolean;
+          last_accuracy_meters: number | null;
+          last_latitude: number | null;
+          last_longitude: number | null;
+          last_seen_at: string | null;
+          token: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          is_active?: boolean;
+          last_accuracy_meters?: number | null;
+          last_latitude?: number | null;
+          last_longitude?: number | null;
+          last_seen_at?: string | null;
+          token: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["location_shares"]["Insert"]>;
         Relationships: [];
       };
     };

@@ -6,7 +6,7 @@ import { createSupabaseBrowserClient, getBrowserAppUrl } from "@/lib/supabase/br
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 
 type AuthMode = "login" | "signup";
 
@@ -19,13 +19,13 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
 
   function getAuthRedirectUrl(next = "/") {
     const appUrl = getBrowserAppUrl().trim();
-    const origin = appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : window.location.origin;
+    const origin = window.location.origin || (appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : "");
     return `${origin}/api/auth/callback?next=${encodeURIComponent(next)}`;
   }
 
   function getEmailConfirmationRedirectUrl() {
     const appUrl = getBrowserAppUrl().trim();
-    const origin = appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : window.location.origin;
+    const origin = window.location.origin || (appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : "");
     return `${origin}/login?confirmed=1`;
   }
 
@@ -126,6 +126,7 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === "signup" ? (
           <Input
+            aria-label="Full name"
             placeholder="Full name"
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
@@ -134,7 +135,9 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
         ) : null}
 
         <Input
+          aria-label="Email"
           type="email"
+          autoComplete="email"
           placeholder="Email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -142,7 +145,9 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
         />
 
         <Input
+          aria-label="Password"
           type="password"
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
           placeholder="Password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -154,25 +159,29 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
           {loading ? "Working..." : mode === "signup" ? "Create account" : "Log in"}
         </Button>
 
-        <Button type="button" variant="secondary" className="w-full" onClick={handleGoogle} disabled={loading}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full"
+          onClick={handleGoogle}
+          disabled={loading}
+        >
           Continue with Google
         </Button>
 
         {message ? <p className="text-sm text-red-500">{message}</p> : null}
       </form>
 
-      <Textarea
-        readOnly
-        value="Offers are only authorized when submitted. Funds are captured only if the experience host accepts."
-        className="min-h-0 resize-none border-dashed bg-slate-50 text-slate-600"
-      />
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+        Offers are only authorized when submitted. Funds are captured only if the experience host accepts.
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <Badge tone="success">
           <ShieldCheck className="h-3.5 w-3.5" />
           Trust-first onboarding
         </Badge>
-        <Badge tone="info">Soft verification signals</Badge>
+        <Badge tone="info">Profile quality signals</Badge>
       </div>
     </Card>
   );

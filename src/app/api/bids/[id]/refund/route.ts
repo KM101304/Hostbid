@@ -11,7 +11,6 @@ export async function POST(
     const { id } = await params;
     const user = await requireUser();
     const admin = createSupabaseAdminClient();
-    const stripe = getStripe();
 
     const { data: bid } = await admin
       .from("bids")
@@ -27,9 +26,12 @@ export async function POST(
       throw new Error("You cannot release this offer.");
     }
 
-    if (bid.status === "selected") {
-      await stripe.refunds.create({ payment_intent: bid.payment_intent_id });
-    } else {
+    if (bid.status !== "active") {
+      throw new Error("Only active offers can be released here.");
+    }
+
+    if (bid.payment_intent_id) {
+      const stripe = getStripe();
       await stripe.paymentIntents.cancel(bid.payment_intent_id);
     }
 

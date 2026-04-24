@@ -2,22 +2,29 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, MessageSquare, Plus, Shield, UserRound } from "lucide-react";
+import { Compass, MessageSquare, Plus, UserRound } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/", label: "Discover", icon: Compass },
-  { href: "/dashboard", label: "Hub", icon: UserRound },
+  { href: "/", label: "Home", icon: Compass },
+  { href: "/experiences", label: "Browse", icon: Compass },
   { href: "/experiences/new", label: "Create", icon: Plus },
+  { href: "/dashboard", label: "Hub", icon: UserRound },
   { href: "/messages", label: "Messages", icon: MessageSquare },
-  { href: "/moderation", label: "Safety", icon: Shield },
 ];
 
-const visibleRoutes = new Set(["/", "/dashboard", "/messages", "/moderation"]);
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") {
+    return pathname === "/";
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function MobileBottomNav() {
   const pathname = usePathname();
 
-  if (!pathname || !visibleRoutes.has(pathname)) {
+  if (!pathname || !navItems.some((item) => isActivePath(pathname, item.href))) {
     return null;
   }
 
@@ -27,7 +34,12 @@ export function MobileBottomNav() {
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href} className="mobile-nav-link">
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
+              className={cn("mobile-nav-link", isActivePath(pathname, item.href) && "mobile-nav-link-active")}
+            >
               <Icon className="h-4 w-4" />
               <span>{item.label}</span>
             </Link>

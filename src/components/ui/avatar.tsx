@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { RemoteImage } from "@/components/ui/remote-image";
 import { cn } from "@/lib/utils";
 
 export function Avatar({
@@ -14,7 +14,7 @@ export function Avatar({
 }) {
   if (src) {
     return (
-      <Image
+      <RemoteImage
         src={src}
         alt={alt}
         width={96}

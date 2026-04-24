@@ -13,7 +13,6 @@ export function computeProfileQualityScore(profile: Partial<ProfileRow>) {
   if (profile.location) score += 10;
   if (profile.avatar_url) score += 10;
   if (profile.photo_urls && profile.photo_urls.length >= 2) score += 10;
-  if (profile.is_verified) score += 20;
 
   return Math.min(score, 100);
 }

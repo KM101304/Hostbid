@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MapPin, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { MapPin, Sparkles, Star } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,6 @@ type Bid = {
     bio?: string | null;
     location?: string | null;
     quality_score?: number | null;
-    is_verified?: boolean | null;
     avatar_url?: string | null;
   } | null;
 };
@@ -89,12 +88,6 @@ export function BidList({
                     <Star className="h-3.5 w-3.5" />
                     Status {bid.status}
                   </Badge>
-                  {bid.profiles?.is_verified ? (
-                    <Badge tone="success">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Verified
-                    </Badge>
-                  ) : null}
                 </div>
 
                 <div>

@@ -3,8 +3,18 @@ import { requireUser } from "@/lib/auth";
 import { getAppUrl } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { applyRateLimitHeaders, getClientIp } from "@/lib/request";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, getStripeConnectProfileUpdate, syncStripeConnectAccount } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+function getStripeConnectErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unable to start Stripe onboarding.";
+
+  if (message.includes("signed up for Connect")) {
+    return "HostBid payouts are not enabled yet. The HostBid team needs to activate Stripe Connect before you can finish payout setup.";
+  }
+
+  return message;
+}
 
 async function getOrCreateConnectAccountId(userId: string, email: string | null | undefined) {
   const admin = createSupabaseAdminClient();
@@ -32,7 +42,10 @@ async function getOrCreateConnectAccountId(userId: string, email: string | null 
 
   await admin
     .from("profiles")
-    .update({ stripe_connect_account_id: account.id })
+    .update({
+      stripe_connect_account_id: account.id,
+      ...getStripeConnectProfileUpdate(account),
+    })
     .eq("id", userId);
 
   return {
@@ -61,18 +74,28 @@ export async function GET() {
     }
 
     const stripe = getStripe();
-    const account = await stripe.accounts.retrieve(profile.stripe_connect_account_id);
+    const [account, balance] = await Promise.all([
+      stripe.accounts.retrieve(profile.stripe_connect_account_id),
+      stripe.balance.retrieve({}, { stripeAccount: profile.stripe_connect_account_id }),
+    ]);
+    const connectState = await syncStripeConnectAccount(account);
+    const availableUsd = balance.available.find((entry) => entry.currency === "usd")?.amount ?? 0;
+    const pendingUsd = balance.pending.find((entry) => entry.currency === "usd")?.amount ?? 0;
 
     return NextResponse.json({
       accountId: profile.stripe_connect_account_id,
       connected: true,
-      onboardingComplete: account.details_submitted,
-      payoutsEnabled: account.payouts_enabled,
-      chargesEnabled: account.charges_enabled,
+      onboardingComplete: connectState.stripe_onboarding_complete,
+      payoutsEnabled: connectState.stripe_payouts_enabled,
+      chargesEnabled: connectState.stripe_charges_enabled,
+      requirementsCurrentlyDue: connectState.stripe_requirements_currently_due,
+      disabledReason: connectState.stripe_requirements_disabled_reason,
+      balanceAvailableCents: availableUsd,
+      balancePendingCents: pendingUsd,
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to fetch Stripe connection status." },
+      { error: getStripeConnectErrorMessage(error) },
       { status: 400 },
     );
   }
@@ -98,9 +121,10 @@ export async function POST(request: Request) {
     }
 
     const stripe = getStripe();
-    const appUrl = getAppUrl();
+    const appUrl = new URL(request.url).origin || getAppUrl();
     const { accountId } = await getOrCreateConnectAccountId(user.id, user.email);
     const account = await stripe.accounts.retrieve(accountId);
+    await syncStripeConnectAccount(account);
 
     if (account.details_submitted && account.charges_enabled) {
       const loginLink = await stripe.accounts.createLoginLink(accountId);
@@ -120,7 +144,7 @@ export async function POST(request: Request) {
     return applyRateLimitHeaders(NextResponse.json({ url: accountLink.url, mode: "onboarding", accountId }), rateLimit);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to start Stripe onboarding." },
+      { error: getStripeConnectErrorMessage(error) },
       { status: 400 },
     );
   }

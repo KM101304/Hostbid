@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { DateWindowField } from "@/components/experiences/date-window-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,14 +19,50 @@ const SAFETY_OPTIONS = [
 export function ExperienceForm() {
   const router = useRouter();
   const [selectedSafety, setSelectedSafety] = useState<string[]>(["Public venue only"]);
+  const [dateWindowStart, setDateWindowStart] = useState("");
+  const [dateWindowEnd, setDateWindowEnd] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
+  const [startingBid, setStartingBid] = useState("");
+
+  const timingSummary = useMemo(() => {
+    if (!dateWindowStart && !dateWindowEnd) {
+      return "Timing is still flexible.";
+    }
+
+    if (dateWindowStart && dateWindowEnd) {
+      return "Guests will see a clear start and end window for this experience.";
+    }
+
+    return "Guests will see a single anchor time, with flexibility around the rest.";
+  }, [dateWindowEnd, dateWindowStart]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setCalendarMessage(null);
     setSubmitting(true);
     setMessage(null);
     const formData = new FormData(event.currentTarget);
+
+    if (dateWindowStart && dateWindowEnd && new Date(dateWindowEnd) <= new Date(dateWindowStart)) {
+      setSubmitting(false);
+      setCalendarMessage("End time needs to come after the start time.");
+      return;
+    }
+
+    if (expiresAt && dateWindowStart && new Date(expiresAt) >= new Date(dateWindowStart)) {
+      setSubmitting(false);
+      setCalendarMessage("Offer deadline should happen before the experience starts.");
+      return;
+    }
+
+    if (expiresAt && new Date(expiresAt) <= new Date()) {
+      setSubmitting(false);
+      setCalendarMessage("Offer deadline needs to be in the future.");
+      return;
+    }
 
     const response = await fetch("/api/experiences", {
       method: "POST",
@@ -37,11 +74,10 @@ export function ExperienceForm() {
         description: formData.get("description"),
         location: formData.get("location"),
         vibeSummary: formData.get("vibeSummary"),
-        dateWindowStart: formData.get("dateWindowStart"),
-        dateWindowEnd: formData.get("dateWindowEnd"),
-        budgetMinCents: Number(formData.get("budgetMinCents") || 0) * 100,
-        budgetMaxCents: Number(formData.get("budgetMaxCents") || 0) * 100,
-        expiresAt: formData.get("expiresAt"),
+        dateWindowStart,
+        dateWindowEnd,
+        startingBidCents: startingBid ? Math.round(Number(startingBid) * 100) : undefined,
+        expiresAt,
         safetyPreferences: selectedSafety,
       }),
     });
@@ -80,26 +116,50 @@ export function ExperienceForm() {
           </div>
         </div>
 
-        <Input name="title" placeholder="Rooftop dinner with city views" required />
-        <Input name="vibeSummary" placeholder="Warm, curious, design-minded evening with room to connect" required />
+        <Input name="title" aria-label="Experience title" placeholder="Rooftop dinner with city views" required />
+        <Input name="vibeSummary" aria-label="Vibe summary" placeholder="Warm, curious, design-minded evening with room to connect" required />
         <Textarea
           name="description"
+          aria-label="Experience description"
           placeholder="Describe the energy, expectations, and what a thoughtful offer should understand before reaching out."
           required
         />
-        <Input name="location" placeholder="Los Angeles, CA" required />
+        <Input name="location" aria-label="Location" placeholder="Los Angeles, CA" required />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input name="dateWindowStart" type="datetime-local" />
-          <Input name="dateWindowEnd" type="datetime-local" />
+        <DateWindowField
+          start={dateWindowStart}
+          end={dateWindowEnd}
+          expiresAt={expiresAt}
+          onStartChange={setDateWindowStart}
+          onEndChange={setDateWindowEnd}
+          onExpiresAtChange={setExpiresAt}
+        />
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
+          {timingSummary}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input name="budgetMinCents" type="number" min="0" placeholder="Preferred lower range (USD)" />
-          <Input name="budgetMaxCents" type="number" min="0" placeholder="Preferred upper range (USD)" />
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/70 p-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Starting bid</p>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              Optional. This stays subtle in the experience flow and quietly sets the floor for offers without turning the page into a range picker.
+            </p>
+          </div>
+          <Input
+            name="startingBid"
+            aria-label="Starting bid"
+            type="number"
+            min="10"
+            step="1"
+            inputMode="numeric"
+            value={startingBid}
+            onChange={(event) => setStartingBid(event.target.value)}
+            placeholder="Starting bid"
+          />
         </div>
 
-        <Input name="expiresAt" type="datetime-local" />
+        {calendarMessage ? <p className="text-sm text-red-500">{calendarMessage}</p> : null}
       </Card>
 
       <Card as="section" className="space-y-5 p-6 sm:p-8">

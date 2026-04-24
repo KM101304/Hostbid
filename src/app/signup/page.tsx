@@ -28,7 +28,7 @@ export default function SignupPage() {
               <ShieldCheck className="h-5 w-5 text-emerald-600" />
               <p className="mt-4 text-sm font-semibold text-slate-900">Trust indicators</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Verification badges, safety tags, and profile quality help people decide with confidence.
+                Safety tags and profile quality help people decide with confidence.
               </p>
             </Card>
           </div>

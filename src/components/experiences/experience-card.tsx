@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
-import { CalendarDays, MapPin, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { CalendarDays, MapPin, Sparkles, Star } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { RemoteImage } from "@/components/ui/remote-image";
 import { formatCurrency, formatRelativeWindow, interestLabel } from "@/lib/utils";
 
 type ExperienceCardProps = {
@@ -15,19 +15,20 @@ type ExperienceCardProps = {
     date_window_start: string | null;
     date_window_end: string | null;
     budget_min_cents: number | null;
-    budget_max_cents: number | null;
     profiles?: {
       full_name?: string | null;
-      is_verified?: boolean | null;
       avatar_url?: string | null;
+      photo_urls?: string[] | null;
       quality_score?: number | null;
     } | null;
     bids?: { id: string; status: string }[] | null;
   };
+  priority?: boolean;
 };
 
-export function ExperienceCard({ experience }: ExperienceCardProps) {
+export function ExperienceCard({ experience, priority = false }: ExperienceCardProps) {
   const activeBidCount = (experience.bids ?? []).filter((bid) => bid.status === "active").length;
+  const heroUrl = experience.profiles?.photo_urls?.[0] ?? experience.profiles?.avatar_url;
 
   return (
     <Link
@@ -35,13 +36,15 @@ export function ExperienceCard({ experience }: ExperienceCardProps) {
       className="surface-card surface-card-hover fade-slide group block overflow-hidden"
     >
       <div className="relative h-64 overflow-hidden bg-slate-100">
-        {experience.profiles?.avatar_url ? (
-          <Image
-            src={experience.profiles.avatar_url}
-            alt={experience.profiles.full_name ?? "Host"}
-            fill
+        {heroUrl ? (
+          <RemoteImage
+            src={heroUrl}
+            alt={experience.profiles?.full_name ?? "Host"}
+            width={1200}
+            height={960}
             sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-            className="object-cover transition duration-300 group-hover:scale-[1.03]"
+            priority={priority}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,168,212,0.45),transparent_36%),linear-gradient(135deg,rgba(255,255,255,1),rgba(241,245,249,1))]" />
@@ -52,12 +55,6 @@ export function ExperienceCard({ experience }: ExperienceCardProps) {
             <Sparkles className="h-3.5 w-3.5" />
             {interestLabel(activeBidCount)}
           </Badge>
-          {experience.profiles?.is_verified ? (
-            <Badge tone="success" className="bg-white/88">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Verified host
-            </Badge>
-          ) : null}
         </div>
         <div className="absolute inset-x-5 bottom-5 flex items-end justify-between gap-4">
           <div>
@@ -102,12 +99,9 @@ export function ExperienceCard({ experience }: ExperienceCardProps) {
             <Star className="h-3.5 w-3.5" />
             {activeBidCount > 0 ? `${activeBidCount} active offers` : "Open to offers"}
           </Badge>
-          {experience.budget_min_cents || experience.budget_max_cents ? (
+          {experience.budget_min_cents ? (
             <Badge tone="primary">
-              Preferred range{" "}
-              {experience.budget_min_cents && experience.budget_max_cents
-                ? `${formatCurrency(experience.budget_min_cents)} - ${formatCurrency(experience.budget_max_cents)}`
-                : formatCurrency(experience.budget_max_cents ?? experience.budget_min_cents ?? 0)}
+              Starting bid {formatCurrency(experience.budget_min_cents)}
             </Badge>
           ) : null}
         </div>

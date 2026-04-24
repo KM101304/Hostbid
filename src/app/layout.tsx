@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { PublicEnvScript } from "@/components/env/public-env-script";
 import "./globals.css";
@@ -11,6 +11,17 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "HostBid",
   description: "A premium social platform for curated experiences, thoughtful offers, and trusted connections.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

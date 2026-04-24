@@ -28,6 +28,11 @@ create table if not exists public.profiles (
   quality_score int not null default 0,
   stripe_customer_id text,
   stripe_connect_account_id text,
+  stripe_onboarding_complete boolean not null default false,
+  stripe_charges_enabled boolean not null default false,
+  stripe_payouts_enabled boolean not null default false,
+  stripe_requirements_currently_due text[] not null default '{}',
+  stripe_requirements_disabled_reason text,
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
 );

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
 const desktopNavItems = [
-  { href: "/", label: "Discover", icon: Compass },
+  { href: "/", label: "Home", icon: Compass },
+  { href: "/experiences", label: "Browse", icon: Compass },
   { href: "/dashboard", label: "Hub", icon: UserRound },
   { href: "/experiences/new", label: "Create", icon: Plus },
   { href: "/messages", label: "Messages", icon: MessageSquare },
@@ -32,7 +33,7 @@ export async function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 pt-[env(safe-area-inset-top)] backdrop-blur-2xl">
         <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 sm:px-5 lg:px-8">
           <Link href="/" className="flex min-w-0 items-center gap-3">
             <div className="brand-mark grid h-11 w-11 shrink-0 place-items-center text-[14px] font-semibold tracking-[-0.08em]">
@@ -86,11 +87,6 @@ export async function TopNav() {
                       <Badge tone="info" className="h-6 px-2 py-0 text-[11px]">
                         {profileBadgeLabel}
                       </Badge>
-                      {profile?.is_verified ? (
-                        <Badge tone="success" className="h-6 px-2 py-0 text-[11px]">
-                          Verified
-                        </Badge>
-                      ) : null}
                     </div>
                   </div>
                 </Link>

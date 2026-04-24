@@ -36,7 +36,6 @@ export async function PUT(request: Request) {
       location: parsed.location,
       avatar_url: parsed.avatarUrl || null,
       photo_urls: parsed.photoUrls,
-      is_verified: parsed.isVerified,
     });
 
     const { data, error } = await admin
@@ -49,8 +48,11 @@ export async function PUT(request: Request) {
         location: parsed.location,
         avatar_url: parsed.avatarUrl || null,
         photo_urls: parsed.photoUrls,
-        is_verified: parsed.isVerified,
         stripe_connect_account_id: parsed.stripeConnectAccountId || null,
+        verification_status: parsed.verificationStatus ?? "not_started",
+        verification_selfie_url: parsed.verificationSelfieUrl || null,
+        verification_submitted_at:
+          parsed.verificationStatus === "pending" ? new Date().toISOString() : undefined,
         quality_score: qualityScore,
       })
       .select("*")

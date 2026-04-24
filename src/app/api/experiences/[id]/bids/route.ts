@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { applyRateLimitHeaders, getClientIp } from "@/lib/request";
-import { calculatePlatformFee, getStripe } from "@/lib/stripe";
+import { calculatePlatformFee, getStripe, hasStripeEnv } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { bidIntentSchema } from "@/lib/validators";
 
@@ -86,13 +86,14 @@ export async function POST(
     }
 
     const admin = createSupabaseAdminClient();
-    const stripe = getStripe();
     const body = await request.json();
     const parsed = bidIntentSchema.parse(body);
 
     const { data: experience } = await admin
       .from("experiences")
-      .select("*, profiles!experiences_user_id_fkey(id, full_name, stripe_connect_account_id)")
+      .select(
+        "*, profiles!experiences_user_id_fkey(id, full_name, stripe_connect_account_id, stripe_charges_enabled, stripe_payouts_enabled)",
+      )
       .eq("id", id)
       .maybeSingle();
 
@@ -112,6 +113,17 @@ export async function POST(
       throw new Error("This experience is inactive.");
     }
 
+    if (experience.budget_min_cents && parsed.amountCents < experience.budget_min_cents) {
+      throw new Error("This offer is below the host's starting bid.");
+    }
+
+    const hostCanSecurePayments = Boolean(
+      hasStripeEnv() &&
+        experience.profiles?.stripe_connect_account_id &&
+        experience.profiles.stripe_charges_enabled &&
+        experience.profiles.stripe_payouts_enabled,
+    );
+
     const { data: existingBid } = await admin
       .from("bids")
       .select("*")
@@ -124,8 +136,36 @@ export async function POST(
       throw new Error("You already have a live offer on this experience.");
     }
 
-    const { data: profile } = await admin.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    if (parsed.paymentMode === "unsecured" || !hostCanSecurePayments) {
+      const { data, error } = await admin
+        .from("bids")
+        .insert({
+          experience_id: id,
+          bidder_id: user.id,
+          amount_cents: parsed.amountCents,
+          pitch: parsed.pitch,
+          payment_intent_id: null,
+          status: "active",
+        })
+        .select("*")
+        .single();
 
+      if (error) {
+        throw error;
+      }
+
+      return applyRateLimitHeaders(
+        NextResponse.json({
+          bid: data,
+          paymentMode: "unsecured",
+          warning: "Offer sent without a payment authorization because host payouts are not ready yet.",
+        }),
+        rateLimit,
+      );
+    }
+
+    const stripe = getStripe();
+    const { data: profile } = await admin.from("profiles").select("*").eq("id", user.id).maybeSingle();
     let customerId = profile?.stripe_customer_id ?? null;
 
     if (!customerId) {
@@ -145,12 +185,9 @@ export async function POST(
         capture_method: "manual",
         customer: customerId,
         automatic_payment_methods: { enabled: true },
-        application_fee_amount: experience.profiles?.stripe_connect_account_id
-          ? calculatePlatformFee(parsed.amountCents)
-          : undefined,
-        transfer_data: experience.profiles?.stripe_connect_account_id
-          ? { destination: experience.profiles.stripe_connect_account_id }
-          : undefined,
+        on_behalf_of: experience.profiles!.stripe_connect_account_id!,
+        application_fee_amount: calculatePlatformFee(parsed.amountCents),
+        transfer_data: { destination: experience.profiles!.stripe_connect_account_id! },
         metadata: {
           bidderId: user.id,
           experienceId: id,
@@ -170,9 +207,54 @@ export async function POST(
     }
 
     const paymentIntent = await stripe.paymentIntents.retrieve(parsed.paymentIntentId);
+    const expectedFee = calculatePlatformFee(parsed.amountCents);
+    const paymentIntentCustomerId =
+      typeof paymentIntent.customer === "string" ? paymentIntent.customer : paymentIntent.customer?.id;
+    const paymentIntentDestination =
+      typeof paymentIntent.transfer_data?.destination === "string"
+        ? paymentIntent.transfer_data.destination
+        : paymentIntent.transfer_data?.destination?.id;
+    const paymentIntentOnBehalfOf =
+      typeof paymentIntent.on_behalf_of === "string" ? paymentIntent.on_behalf_of : paymentIntent.on_behalf_of?.id;
 
     if (paymentIntent.status !== "requires_capture") {
       throw new Error("Payment authorization is not ready for capture.");
+    }
+
+    if (paymentIntent.capture_method !== "manual") {
+      throw new Error("Payment authorization is not configured for manual capture.");
+    }
+
+    if (paymentIntent.amount !== parsed.amountCents) {
+      throw new Error("Payment authorization amount does not match this offer.");
+    }
+
+    if (paymentIntent.currency !== "usd") {
+      throw new Error("Payment authorization currency does not match this offer.");
+    }
+
+    if (paymentIntentCustomerId !== customerId) {
+      throw new Error("Payment authorization does not belong to this bidder.");
+    }
+
+    if (paymentIntentDestination !== experience.profiles!.stripe_connect_account_id) {
+      throw new Error("Payment authorization payout destination is invalid.");
+    }
+
+    if (paymentIntentOnBehalfOf !== experience.profiles!.stripe_connect_account_id) {
+      throw new Error("Payment authorization settlement merchant is invalid.");
+    }
+
+    if (paymentIntent.application_fee_amount !== expectedFee) {
+      throw new Error("Payment authorization fee does not match this offer.");
+    }
+
+    if (
+      paymentIntent.metadata.bidderId !== user.id ||
+      paymentIntent.metadata.experienceId !== id ||
+      paymentIntent.metadata.hostId !== experience.user_id
+    ) {
+      throw new Error("Payment authorization metadata does not match this offer.");
     }
 
     const { data, error } = await admin

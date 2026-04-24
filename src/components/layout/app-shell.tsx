@@ -5,7 +5,7 @@ export async function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="min-h-screen bg-transparent">
       <TopNav />
-      <div className="pb-44 md:pb-10">{children}</div>
+      <div className="pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-10">{children}</div>
     </div>
   );
 }

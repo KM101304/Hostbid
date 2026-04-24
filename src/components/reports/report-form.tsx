@@ -49,8 +49,8 @@ export function ReportForm({
           Flag concerns quietly so the moderation team can review them.
         </p>
       </div>
-      <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-      <Textarea placeholder="Details" value={details} onChange={(e) => setDetails(e.target.value)} />
+      <Input aria-label="Report reason" placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} required />
+      <Textarea aria-label="Report details" placeholder="Details" value={details} onChange={(e) => setDetails(e.target.value)} />
       <Button type="submit" variant="secondary">
         Submit report
       </Button>
