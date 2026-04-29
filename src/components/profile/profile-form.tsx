@@ -336,19 +336,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           </Card>
 
           <Card as="section" className="space-y-4 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <WalletCards className="h-4 w-4 text-sky-600" />
-                  <p className="text-sm font-semibold text-slate-900">Payout balances</p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  This shows what Stripe has available to pay out and what is still pending settlement on your connected account.
-                </p>
-              </div>
-              <Badge tone={stripeState.payoutsEnabled ? "success" : "default"}>
-                {stripeState.connected ? "Live Stripe data" : "Connect first"}
-              </Badge>
+            <div className="flex items-center gap-2">
+              <WalletCards className="h-4 w-4 text-sky-600" />
+              <p className="text-sm font-semibold text-slate-900">Payout balances</p>
             </div>
 
             {stripeState.connected ? (

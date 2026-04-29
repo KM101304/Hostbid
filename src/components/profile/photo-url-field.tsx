@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Cropper, { type Area, type MediaSize } from "react-easy-crop";
-import { Camera, GripVertical, ImagePlus, Link2, LoaderCircle, Move, Star, Trash2, Upload, X } from "lucide-react";
+import { Camera, GripVertical, ImagePlus, LoaderCircle, Move, Star, Trash2, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { RemoteImage } from "@/components/ui/remote-image";
 import { cropAndCompressImage, fileToDataUrl } from "@/lib/image";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -54,7 +53,6 @@ export function PhotoUrlField({
   onPrimaryChange,
   limit = 6,
 }: PhotoUrlFieldProps) {
-  const [linkDraft, setLinkDraft] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -257,26 +255,6 @@ export function PhotoUrlField({
     }
   }
 
-  function handleLinkAdd() {
-    if (!linkDraft.trim()) {
-      return;
-    }
-
-    if (trimmedUrls.length >= limit) {
-      setMessage(`You already have the maximum of ${limit} photos.`);
-      return;
-    }
-
-    try {
-      const url = new URL(linkDraft.trim());
-      updateUrls([...trimmedUrls, url.toString()]);
-      setLinkDraft("");
-      setMessage("Photo link added.");
-    } catch {
-      setMessage("Enter a valid image URL if you want to add a photo from the web.");
-    }
-  }
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
@@ -334,25 +312,6 @@ export function PhotoUrlField({
           </div>
         </div>
       </label>
-
-      <div className="surface-subtle space-y-3 p-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
-          <Link2 className="h-4 w-4 text-slate-500" />
-          Add from a link instead
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Input
-            aria-label="Photo URL"
-            type="url"
-            value={linkDraft}
-            placeholder="https://example.com/photo.jpg"
-            onChange={(event) => setLinkDraft(event.target.value)}
-          />
-          <Button type="button" variant="secondary" className="sm:min-w-36" onClick={handleLinkAdd}>
-            Add link
-          </Button>
-        </div>
-      </div>
 
       {trimmedUrls.length === 0 ? (
         <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 text-sm leading-6 text-slate-500">

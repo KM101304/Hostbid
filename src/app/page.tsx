@@ -87,45 +87,43 @@ export default async function HomePage() {
                 </div>
               </Card>
             ) : null}
-            <Card as="section" className="fade-slide bg-[linear-gradient(135deg,rgba(249,168,212,0.18),rgba(255,255,255,1),rgba(241,245,249,0.92))] p-7">
-              <Badge tone="info">
-                <Star className="h-3.5 w-3.5" />
-                {user ? "Stay discoverable" : "What makes it different"}
-              </Badge>
-              <p className="mt-5 text-[24px] font-semibold leading-9 tracking-[-0.04em] text-slate-900">
-                {user
-                  ? "Your homepage should help you move, not reset back to marketing mode every time you log in."
-                  : "Offers add signal, but personal fit, safety, and style still guide the final choice."}
-              </p>
-            </Card>
+            {!user ? (
+              <>
+                <Card as="section" className="fade-slide bg-[linear-gradient(135deg,rgba(249,168,212,0.18),rgba(255,255,255,1),rgba(241,245,249,0.92))] p-7">
+                  <Badge tone="info">
+                    <Star className="h-3.5 w-3.5" />
+                    What makes it different
+                  </Badge>
+                  <p className="mt-5 text-[24px] font-semibold leading-9 tracking-[-0.04em] text-slate-900">
+                    Offers add signal, but personal fit, safety, and style still guide the final choice.
+                  </p>
+                </Card>
 
-            <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-              <Card as="section" className="fade-slide p-5">
-                <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                <p className="mt-4 text-sm font-semibold text-slate-900">Trust layer</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Verification, profile quality, and safety preferences stay visible without overwhelming the moment.
-                </p>
-              </Card>
-              <Card as="section" className="fade-slide p-5">
-                <Compass className="h-5 w-5 text-primary-dark" />
-                <p className="mt-4 text-sm font-semibold text-slate-900">Experience-first</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {user
-                    ? "Posted experiences and discovery now have a dedicated browse route, so listings stay easy to return to."
-                    : "Each card is framed like a plan you could imagine yourself in, not an item in a marketplace."}
-                </p>
-              </Card>
-              <Card as="section" className="fade-slide p-5">
-                <Sparkles className="h-5 w-5 text-blue-600" />
-                <p className="mt-4 text-sm font-semibold text-slate-900">Soft flow</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {user
-                    ? "Profile, scheduling, and payout details now stay accessible from the moments that matter."
-                    : "Conversations open only after an offer is accepted, keeping discovery calm and intentional."}
-                </p>
-              </Card>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+                  <Card as="section" className="fade-slide p-5">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    <p className="mt-4 text-sm font-semibold text-slate-900">Trust layer</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Verification, profile quality, and safety preferences stay visible without overwhelming the moment.
+                    </p>
+                  </Card>
+                  <Card as="section" className="fade-slide p-5">
+                    <Compass className="h-5 w-5 text-primary-dark" />
+                    <p className="mt-4 text-sm font-semibold text-slate-900">Experience-first</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Each card is framed like a plan you could imagine yourself in, not an item in a marketplace.
+                    </p>
+                  </Card>
+                  <Card as="section" className="fade-slide p-5">
+                    <Sparkles className="h-5 w-5 text-blue-600" />
+                    <p className="mt-4 text-sm font-semibold text-slate-900">Soft flow</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Conversations open only after an offer is accepted, keeping discovery calm and intentional.
+                    </p>
+                  </Card>
+                </div>
+              </>
+            ) : null}
           </div>
         </section>
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Compass, MessageSquare, Plus, Shield, UserCircle2, UserRound } from "lucide-react";
+import { Compass, MessageSquare, Plus, UserCircle2, UserRound } from "lucide-react";
 import { getAuthenticatedUser, getCurrentProfile } from "@/lib/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ const desktopNavItems = [
   { href: "/dashboard", label: "Hub", icon: UserRound },
   { href: "/experiences/new", label: "Create", icon: Plus },
   { href: "/messages", label: "Messages", icon: MessageSquare },
-  { href: "/moderation", label: "Safety", icon: Shield },
 ];
 
 export async function TopNav() {
