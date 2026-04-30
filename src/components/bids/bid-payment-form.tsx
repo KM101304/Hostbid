@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
+import type {
+  StripeExpressCheckoutElementClickEvent,
+  StripeExpressCheckoutElementConfirmEvent,
+  StripeExpressCheckoutElementReadyEvent,
+} from "@stripe/stripe-js";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +31,7 @@ function BidPaymentInner({
   const [pitch, setPitch] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [walletReady, setWalletReady] = useState<boolean | null>(null);
 
   const amountCents = useMemo(() => Math.round(Number(amount || "0") * 100), [amount]);
 
@@ -36,6 +42,68 @@ function BidPaymentInner({
 
     elements.update({ amount: amountCents });
   }, [amountCents, elements]);
+
+  async function createPaymentAuthorization() {
+    const intentResponse = await fetch(`/api/experiences/${experienceId}/bids`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amountCents,
+        pitch,
+      }),
+    });
+
+    const intentPayload = await intentResponse.json();
+
+    if (!intentResponse.ok) {
+      throw new Error(intentPayload.error ?? "Unable to start authorization.");
+    }
+
+    return intentPayload as { clientSecret: string; paymentIntentId: string };
+  }
+
+  async function finalizePaymentAuthorization(paymentIntentId: string) {
+    const finalizeResponse = await fetch(`/api/experiences/${experienceId}/bids`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amountCents,
+        pitch,
+        paymentIntentId,
+      }),
+    });
+
+    const finalizePayload = await finalizeResponse.json();
+
+    if (!finalizeResponse.ok) {
+      throw new Error(finalizePayload.error ?? "Bid authorization could not be finalized.");
+    }
+  }
+
+  async function confirmAndFinalizeAuthorization(clientSecret: string, paymentIntentId: string) {
+    if (!stripe || !elements) {
+      throw new Error("Stripe is still loading.");
+    }
+
+    const result = await stripe.confirmPayment({
+      elements,
+      clientSecret,
+      confirmParams: {
+        return_url: `${window.location.origin}/dashboard`,
+      },
+      redirect: "if_required",
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message ?? "Payment confirmation failed.");
+    }
+
+    await finalizePaymentAuthorization(paymentIntentId);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,58 +122,69 @@ function BidPaymentInner({
       return;
     }
 
-    const intentResponse = await fetch(`/api/experiences/${experienceId}/bids`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amountCents,
-        pitch,
-      }),
-    });
-
-    const intentPayload = await intentResponse.json();
-
-    if (!intentResponse.ok) {
+    try {
+      const intentPayload = await createPaymentAuthorization();
+      await confirmAndFinalizeAuthorization(intentPayload.clientSecret, intentPayload.paymentIntentId);
+      setMessage("Offer secured. The host can now review it.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Payment confirmation failed.");
+    } finally {
       setSubmitting(false);
-      setMessage(intentPayload.error ?? "Unable to start authorization.");
+    }
+  }
+
+  function handleExpressClick(event: StripeExpressCheckoutElementClickEvent) {
+    if (submitting) {
+      event.reject();
       return;
     }
 
-    const result = await stripe.confirmPayment({
-      elements,
-      clientSecret: intentPayload.clientSecret,
-      redirect: "if_required",
-    });
+    if (amountCents < minimumAmountCents || pitch.trim().length < 12) {
+      setMessage("Add a valid amount and a short offer note before opening wallet checkout.");
+      event.reject();
+      return;
+    }
 
-    if (result.error) {
+    event.resolve({
+      emailRequired: true,
+      lineItems: [
+        {
+          name: "HostBid offer authorization",
+          amount: amountCents,
+        },
+      ],
+    });
+  }
+
+  async function handleExpressConfirm(event: StripeExpressCheckoutElementConfirmEvent) {
+    setSubmitting(true);
+    setMessage(null);
+
+    try {
+      if (!elements) {
+        throw new Error("Stripe is still loading.");
+      }
+
+      const submitResult = await elements.submit();
+
+      if (submitResult.error) {
+        throw new Error(submitResult.error.message ?? "Please complete your wallet details.");
+      }
+
+      const intentPayload = await createPaymentAuthorization();
+      await confirmAndFinalizeAuthorization(intentPayload.clientSecret, intentPayload.paymentIntentId);
+      setMessage(`Offer secured with ${event.expressPaymentType.replace("_", " ")}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Wallet payment confirmation failed.";
+      event.paymentFailed({ message });
+      setMessage(message);
+    } finally {
       setSubmitting(false);
-      setMessage(result.error.message ?? "Payment confirmation failed.");
-      return;
     }
+  }
 
-    const finalizeResponse = await fetch(`/api/experiences/${experienceId}/bids`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amountCents,
-        pitch,
-        paymentIntentId: intentPayload.paymentIntentId,
-      }),
-    });
-
-    const finalizePayload = await finalizeResponse.json();
-    setSubmitting(false);
-
-    if (!finalizeResponse.ok) {
-      setMessage(finalizePayload.error ?? "Bid authorization could not be finalized.");
-      return;
-    }
-
-    setMessage("Offer secured. The host can now review it.");
+  function handleExpressReady(event: StripeExpressCheckoutElementReadyEvent) {
+    setWalletReady(Boolean(event.availablePaymentMethods));
   }
 
   return (
@@ -154,12 +233,52 @@ function BidPaymentInner({
         </div>
         <p className="text-2xl font-semibold tracking-[-0.03em] text-slate-900">{formatCurrency(amountCents)}</p>
         <p className="text-sm leading-6 text-slate-600">
-          Funds are held now, captured only if you are accepted, and released if you are not selected.
+          Funds are held now, captured only after the host accepts and you confirm, and released if you are not selected.
         </p>
       </div>
 
+      {walletReady !== false ? (
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Wallet checkout</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Use Apple Pay, Google Pay, or Link when available on this device.
+            </p>
+          </div>
+          <ExpressCheckoutElement
+            onClick={handleExpressClick}
+            onConfirm={handleExpressConfirm}
+            onReady={handleExpressReady}
+            options={{
+              buttonHeight: 48,
+              layout: {
+                maxColumns: 1,
+                maxRows: 3,
+                overflow: "never",
+              },
+              paymentMethodOrder: ["apple_pay", "google_pay", "link"],
+              paymentMethods: {
+                applePay: "always",
+                googlePay: "always",
+                link: "auto",
+              },
+            }}
+          />
+        </div>
+      ) : null}
+
       <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <PaymentElement />
+        <p className="mb-3 text-sm font-semibold text-slate-900">
+          {walletReady === false ? "Secure card fallback" : "Other secure payment methods"}
+        </p>
+        <PaymentElement
+          options={{
+            wallets: {
+              applePay: "never",
+              googlePay: "never",
+            },
+          }}
+        />
       </div>
 
       <Button

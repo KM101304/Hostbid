@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { requireUser } from "@/lib/auth";
+import { LIVE_BID_STATUSES } from "@/lib/payments";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { applyRateLimitHeaders, getClientIp } from "@/lib/request";
 import { calculatePlatformFee, getStripe, hasStripeEnv } from "@/lib/stripe";
@@ -129,10 +131,10 @@ export async function POST(
       .select("*")
       .eq("experience_id", id)
       .eq("bidder_id", user.id)
-      .in("status", ["active", "selected"])
+      .in("status", [...LIVE_BID_STATUSES])
       .maybeSingle();
 
-    if (existingBid) {
+    if (existingBid && (!parsed.paymentIntentId || existingBid.payment_intent_id !== parsed.paymentIntentId)) {
       throw new Error("You already have a live offer on this experience.");
     }
 
@@ -144,7 +146,7 @@ export async function POST(
           bidder_id: user.id,
           amount_cents: parsed.amountCents,
           pitch: parsed.pitch,
-          payment_intent_id: null,
+          payment_intent_id: `unsecured_${randomUUID()}`,
           status: "active",
         })
         .select("*")
@@ -196,9 +198,27 @@ export async function POST(
           amountCents: String(parsed.amountCents),
         },
       });
+      const { data: bid, error } = await admin
+        .from("bids")
+        .insert({
+          experience_id: id,
+          bidder_id: user.id,
+          amount_cents: parsed.amountCents,
+          pitch: parsed.pitch,
+          payment_intent_id: paymentIntent.id,
+          status: "capture_failed",
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        await stripe.paymentIntents.cancel(paymentIntent.id);
+        throw error;
+      }
 
       return applyRateLimitHeaders(
         NextResponse.json({
+          bid,
           clientSecret: paymentIntent.client_secret,
           paymentIntentId: paymentIntent.id,
         }),
@@ -257,18 +277,27 @@ export async function POST(
       throw new Error("Payment authorization metadata does not match this offer.");
     }
 
-    const { data, error } = await admin
+    const bidPayload = {
+      experience_id: id,
+      bidder_id: user.id,
+      amount_cents: parsed.amountCents,
+      pitch: parsed.pitch,
+      payment_intent_id: paymentIntent.id,
+      status: "active",
+    };
+    const { data: authorizationBid } = await admin
       .from("bids")
-      .insert({
-        experience_id: id,
-        bidder_id: user.id,
-        amount_cents: parsed.amountCents,
-        pitch: parsed.pitch,
-        payment_intent_id: paymentIntent.id,
-        status: "active",
-      })
       .select("*")
-      .single();
+      .eq("experience_id", id)
+      .eq("bidder_id", user.id)
+      .eq("payment_intent_id", paymentIntent.id)
+      .maybeSingle();
+
+    const { data, error } = existingBid
+      ? await admin.from("bids").update(bidPayload).eq("id", existingBid.id).select("*").single()
+      : authorizationBid
+        ? await admin.from("bids").update(bidPayload).eq("id", authorizationBid.id).select("*").single()
+      : await admin.from("bids").insert(bidPayload).select("*").single();
 
     if (error) {
       await stripe.paymentIntents.cancel(paymentIntent.id);

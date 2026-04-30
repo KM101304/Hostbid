@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DateWindowField } from "@/components/experiences/date-window-field";
+import { GooglePlacesField } from "@/components/location/google-places-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 const SAFETY_OPTIONS = [
   "Public venue only",
@@ -22,10 +24,20 @@ export function ExperienceForm() {
   const [dateWindowStart, setDateWindowStart] = useState("");
   const [dateWindowEnd, setDateWindowEnd] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [location, setLocation] = useState("");
+  const [locationPlaceId, setLocationPlaceId] = useState("");
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
+  const [locationCity, setLocationCity] = useState<string | null>(null);
+  const [locationProvince, setLocationProvince] = useState<string | null>(null);
+  const [locationCountry, setLocationCountry] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
   const [startingBid, setStartingBid] = useState("");
+
+  useUnsavedChangesWarning(hasUnsavedChanges && !submitting);
 
   const timingSummary = useMemo(() => {
     if (!dateWindowStart && !dateWindowEnd) {
@@ -72,7 +84,13 @@ export function ExperienceForm() {
       body: JSON.stringify({
         title: formData.get("title"),
         description: formData.get("description"),
-        location: formData.get("location"),
+        location,
+        locationPlaceId,
+        locationLatitude,
+        locationLongitude,
+        locationCity,
+        locationProvince,
+        locationCountry,
         vibeSummary: formData.get("vibeSummary"),
         dateWindowStart,
         dateWindowEnd,
@@ -90,18 +108,24 @@ export function ExperienceForm() {
       return;
     }
 
+    setHasUnsavedChanges(false);
     router.push(`/experiences/${payload.experience.id}`);
     router.refresh();
   }
 
   function toggleSafety(option: string) {
+    setHasUnsavedChanges(true);
     setSelectedSafety((current) =>
       current.includes(option) ? current.filter((item) => item !== option) : [...current, option],
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <form
+      onSubmit={handleSubmit}
+      onChange={() => setHasUnsavedChanges(true)}
+      className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"
+    >
       <Card as="section" className="space-y-5 p-6 sm:p-8">
         <div className="space-y-3">
           <Badge tone="primary">
@@ -124,15 +148,42 @@ export function ExperienceForm() {
           placeholder="Describe the energy, expectations, and what a thoughtful offer should understand before reaching out."
           required
         />
-        <Input name="location" aria-label="Location" placeholder="Los Angeles, CA" required />
+        <GooglePlacesField
+          label="Location"
+          placeholder="Start typing an address"
+          value={location}
+          placeId={locationPlaceId}
+          latitude={locationLatitude}
+          longitude={locationLongitude}
+          required
+          onChange={(selection) => {
+            setHasUnsavedChanges(true);
+            setLocation(selection.address);
+            setLocationPlaceId(selection.placeId);
+            setLocationLatitude(selection.latitude);
+            setLocationLongitude(selection.longitude);
+            setLocationCity(selection.city);
+            setLocationProvince(selection.province);
+            setLocationCountry(selection.country);
+          }}
+        />
 
         <DateWindowField
           start={dateWindowStart}
           end={dateWindowEnd}
           expiresAt={expiresAt}
-          onStartChange={setDateWindowStart}
-          onEndChange={setDateWindowEnd}
-          onExpiresAtChange={setExpiresAt}
+          onStartChange={(value) => {
+            setHasUnsavedChanges(true);
+            setDateWindowStart(value);
+          }}
+          onEndChange={(value) => {
+            setHasUnsavedChanges(true);
+            setDateWindowEnd(value);
+          }}
+          onExpiresAtChange={(value) => {
+            setHasUnsavedChanges(true);
+            setExpiresAt(value);
+          }}
         />
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
@@ -154,7 +205,10 @@ export function ExperienceForm() {
             step="1"
             inputMode="numeric"
             value={startingBid}
-            onChange={(event) => setStartingBid(event.target.value)}
+            onChange={(event) => {
+              setHasUnsavedChanges(true);
+              setStartingBid(event.target.value);
+            }}
             placeholder="Starting bid"
           />
         </div>
@@ -212,7 +266,14 @@ export function ExperienceForm() {
           {submitting ? "Publishing..." : "Publish experience"}
         </Button>
 
-        {message ? <p className="text-sm text-red-500">{message}</p> : null}
+        {message ? (
+          <div
+            className="fixed right-4 top-[calc(5rem+env(safe-area-inset-top))] z-50 max-w-sm rounded-2xl border border-red-200 bg-white p-4 text-sm leading-6 text-red-700 shadow-soft-lg"
+            role="status"
+          >
+            {message}
+          </div>
+        ) : null}
       </Card>
     </form>
   );

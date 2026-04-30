@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getFriendlyAuthError } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
 
   if (authError) {
     const loginUrl = new URL("/login", origin);
-    loginUrl.searchParams.set("error", authError);
+    loginUrl.searchParams.set("error", getFriendlyAuthError(authError));
     return NextResponse.redirect(loginUrl);
   }
 
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
 
     if (error) {
       const loginUrl = new URL("/login", origin);
-      loginUrl.searchParams.set("error", error.message);
+      loginUrl.searchParams.set("error", getFriendlyAuthError(error.message));
       return NextResponse.redirect(loginUrl);
     }
   }

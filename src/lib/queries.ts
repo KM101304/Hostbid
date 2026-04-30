@@ -214,6 +214,9 @@ export async function getDashboardData(userId: string) {
             id,
             title,
             location,
+            selected_bid_id,
+            winner_user_id,
+            chat_unlocked_at,
             status
           )
         `,
@@ -230,6 +233,8 @@ export async function getDashboardData(userId: string) {
       status: string;
       location: string;
       created_at: string;
+      selected_bid_id: string | null;
+      winner_user_id: string | null;
       bids: { id: string; status: string }[] | null;
     }>,
     bids: (bids ?? []) as unknown as Array<{
@@ -237,7 +242,15 @@ export async function getDashboardData(userId: string) {
       amount_cents: number;
       status: string;
       created_at: string;
-      experiences: { id: string; title: string; location: string; status: string } | null;
+      experiences: {
+        id: string;
+        title: string;
+        location: string;
+        selected_bid_id: string | null;
+        winner_user_id: string | null;
+        chat_unlocked_at: string | null;
+        status: string;
+      } | null;
     }>,
   };
 }

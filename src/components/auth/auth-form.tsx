@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { createSupabaseBrowserClient, getBrowserAppUrl } from "@/lib/supabase/browser";
+import { getFriendlyAuthError } from "@/lib/errors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,12 +25,6 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
     return `${origin}/api/auth/callback?next=${encodeURIComponent(next)}`;
   }
 
-  function getEmailConfirmationRedirectUrl() {
-    const appUrl = getBrowserAppUrl().trim();
-    const origin = window.location.origin || (appUrl && appUrl.length > 0 ? appUrl.replace(/\/$/, "") : "");
-    return `${origin}/login?confirmed=1`;
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -36,47 +32,50 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
 
     const supabase = createSupabaseBrowserClient();
 
-    if (!supabase) {
+    if (!supabase && mode === "login") {
       setMessage("Authentication is not configured yet.");
       setLoading(false);
       return;
     }
 
-    const response =
-      mode === "signup"
-        ? await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName,
-              },
-              emailRedirectTo: getEmailConfirmationRedirectUrl(),
-            },
-          })
-        : await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
+    if (mode === "signup") {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          fullName,
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setMessage(payload.error ?? "Unable to create your account.");
+        setLoading(false);
+        return;
+      }
+
+      setMessage(payload.message ?? "Check your email to confirm your account, then come back here to log in.");
+      setLoading(false);
+      return;
+    }
+
+    const response = await supabase!.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (response.error) {
-      setMessage(
-        response.error.message === "Email not confirmed"
-          ? "Confirm your email from the message we sent, then come back and log in."
-          : response.error.message,
-      );
+      setMessage(getFriendlyAuthError(response.error.message, "Unable to log in. Please try again."));
       setLoading(false);
       return;
     }
 
-    if (mode === "signup" && !response.data.session) {
-      setMessage("Check your email to confirm your account, then come back here to log in.");
-      setLoading(false);
-      return;
-    }
-
-    await supabase.auth.getSession();
-    window.location.assign(mode === "signup" ? "/profile" : "/");
+    await supabase!.auth.getSession();
+    window.location.assign("/");
   }
 
   async function handleGoogle() {
@@ -99,7 +98,7 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
     });
 
     if (error) {
-      setMessage(error.message);
+      setMessage(getFriendlyAuthError(error.message, "Unable to continue with Google. Please try again."));
       setLoading(false);
     }
   }
@@ -159,6 +158,14 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
           {loading ? "Working..." : mode === "signup" ? "Create account" : "Log in"}
         </Button>
 
+        {mode === "login" ? (
+          <div className="text-right">
+            <Link href="/reset-password" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              Forgot password?
+            </Link>
+          </div>
+        ) : null}
+
         <Button
           type="button"
           variant="secondary"
@@ -173,7 +180,7 @@ export function AuthForm({ mode, initialMessage = null }: { mode: AuthMode; init
       </form>
 
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-        Offers are only authorized when submitted. Funds are captured only if the experience host accepts.
+        Offers are only authorized when submitted. Funds are captured only after host acceptance and bidder confirmation.
       </div>
 
       <div className="flex flex-wrap gap-2">

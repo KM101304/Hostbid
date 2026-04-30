@@ -30,6 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const publicAppUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const publicGoogleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const publicSupabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
@@ -39,6 +40,7 @@ export default function RootLayout({
       <body>
         <PublicEnvScript
           appUrl={publicAppUrl}
+          googleMapsApiKey={publicGoogleMapsApiKey}
           supabaseUrl={publicSupabaseUrl}
           supabasePublicKey={publicSupabaseKey}
         />

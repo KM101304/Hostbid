@@ -19,7 +19,7 @@ export default async function HomePage() {
   const dashboard = user ? await getDashboardData(user.id) : null;
   const activeHostingCount = dashboard?.experiences.filter((experience) => experience.status === "open").length ?? 0;
   const liveOfferCount =
-    dashboard?.bids.filter((bid) => ["active", "selected", "accepted"].includes(bid.status)).length ?? 0;
+    dashboard?.bids.filter((bid) => ["active", "selected"].includes(bid.status)).length ?? 0;
   const profileName = profile?.full_name ?? user?.user_metadata?.full_name ?? "there";
 
   return (

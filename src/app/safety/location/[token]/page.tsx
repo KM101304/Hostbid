@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { MapPin, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseAdminEnv } from "@/lib/env";
+import { getLocationShare, isLocationShareVisible } from "@/lib/location-shares";
 
 export default async function SharedLocationPage({
   params,
@@ -16,30 +16,15 @@ export default async function SharedLocationPage({
     notFound();
   }
 
-  const admin = createSupabaseAdminClient();
-  const { data } = await admin
-    .from("location_shares")
-    .select("*, profiles!location_shares_user_id_fkey(full_name)")
-    .eq("token", token)
-    .eq("is_active", true)
-    .gt("expires_at", new Date().toISOString())
-    .maybeSingle();
-  const share = data as unknown as {
-    expires_at: string;
-    last_accuracy_meters: number | null;
-    last_latitude: number | null;
-    last_longitude: number | null;
-    last_seen_at: string | null;
-    profiles?: { full_name: string | null } | null;
-  } | null;
+  const share = await getLocationShare(token);
 
-  if (!share) {
+  if (!share || !isLocationShareVisible(share)) {
     notFound();
   }
 
   const mapUrl =
-    share.last_latitude && share.last_longitude
-      ? `https://www.google.com/maps?q=${share.last_latitude},${share.last_longitude}`
+    share.lastLatitude && share.lastLongitude
+      ? `https://www.google.com/maps?q=${share.lastLatitude},${share.lastLongitude}`
       : null;
 
   return (
@@ -50,9 +35,9 @@ export default async function SharedLocationPage({
           Trusted location share
         </Badge>
         <div>
-          <h1 className="page-title">{share.profiles?.full_name ?? "Your contact"} is sharing live location.</h1>
+          <h1 className="page-title">{share.userName ?? "Your contact"} is sharing live location.</h1>
           <p className="mt-4 text-sm leading-7 text-slate-600">
-            This private link expires {new Date(share.expires_at).toLocaleString()}. Refresh the page for the latest update.
+            This private link expires {new Date(share.expiresAt).toLocaleString()}. Refresh the page for the latest update.
           </p>
         </div>
 
@@ -68,8 +53,8 @@ export default async function SharedLocationPage({
               <p className="font-semibold">Open latest location</p>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Accuracy: about {Math.round(share.last_accuracy_meters ?? 0)} meters. Last update:{" "}
-              {share.last_seen_at ? new Date(share.last_seen_at).toLocaleString() : "waiting for phone location"}.
+              Accuracy: about {Math.round(share.lastAccuracyMeters ?? 0)} meters. Last update:{" "}
+              {share.lastSeenAt ? new Date(share.lastSeenAt).toLocaleString() : "waiting for phone location"}.
             </p>
           </a>
         ) : (

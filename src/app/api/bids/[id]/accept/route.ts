@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, isStripePaymentIntentId } from "@/lib/stripe";
+import { releaseCompetingOffers } from "@/lib/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -14,7 +15,7 @@ export async function POST(
 
     const { data: bid } = await admin
       .from("bids")
-      .select("*, experiences(*)")
+      .select("*, experiences!bids_experience_id_fkey(*)")
       .eq("id", id)
       .maybeSingle();
 
@@ -30,35 +31,24 @@ export async function POST(
       throw new Error("This bid is not actionable.");
     }
 
-    if (bid.payment_intent_id) {
+    if (bid.experiences.status !== "open") {
+      throw new Error("This experience is no longer accepting an offer.");
+    }
+
+    if (isStripePaymentIntentId(bid.payment_intent_id)) {
       const stripe = getStripe();
-      try {
-        await stripe.paymentIntents.capture(bid.payment_intent_id);
-      } catch {
+      const paymentIntent = await stripe.paymentIntents.retrieve(bid.payment_intent_id);
+
+      if (paymentIntent.status !== "requires_capture") {
         await admin.from("bids").update({ status: "capture_failed" }).eq("id", bid.id);
-        return NextResponse.json({ error: "Payment capture failed. Please choose another bid." }, { status: 402 });
+        return NextResponse.json(
+          { error: "Payment authorization is not ready. Please choose another bid." },
+          { status: 402 },
+        );
       }
     }
 
-    const { data: losingBids } = await admin
-      .from("bids")
-      .select("*")
-      .eq("experience_id", bid.experience_id)
-      .neq("id", bid.id)
-      .eq("status", "active");
-
-    for (const losingBid of losingBids ?? []) {
-      if (losingBid.payment_intent_id) {
-        const stripe = getStripe();
-        await stripe.paymentIntents.cancel(losingBid.payment_intent_id);
-      }
-      await admin.from("bids").update({ status: "refunded", refunded_at: new Date().toISOString() }).eq("id", losingBid.id);
-    }
-
-    await admin
-      .from("bids")
-      .update({ status: "selected", captured_at: new Date().toISOString() })
-      .eq("id", bid.id);
+    await releaseCompetingOffers(bid.experience_id, bid.id);
 
     await admin
       .from("experiences")
@@ -66,18 +56,11 @@ export async function POST(
         selected_bid_id: bid.id,
         winner_user_id: bid.bidder_id,
         status: "closed",
-        chat_unlocked_at: new Date().toISOString(),
+        chat_unlocked_at: null,
       })
       .eq("id", bid.experience_id);
 
-    await admin.from("threads").upsert({
-      experience_id: bid.experience_id,
-      poster_id: bid.experiences.user_id,
-      bidder_id: bid.bidder_id,
-      unlocked_at: new Date().toISOString(),
-    });
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, awaitingBidderConfirmation: true });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to accept bid." },

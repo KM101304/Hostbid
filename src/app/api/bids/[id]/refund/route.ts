@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getStripe } from "@/lib/stripe";
+import { reopenExperienceAfterCaptureFailure } from "@/lib/payments";
+import { getStripe, isStripePaymentIntentId } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -14,7 +15,7 @@ export async function POST(
 
     const { data: bid } = await admin
       .from("bids")
-      .select("*, experiences(*)")
+      .select("*, experiences!bids_experience_id_fkey(*)")
       .eq("id", id)
       .maybeSingle();
 
@@ -30,7 +31,7 @@ export async function POST(
       throw new Error("Only active offers can be released here.");
     }
 
-    if (bid.payment_intent_id) {
+    if (isStripePaymentIntentId(bid.payment_intent_id)) {
       const stripe = getStripe();
       await stripe.paymentIntents.cancel(bid.payment_intent_id);
     }
@@ -39,6 +40,14 @@ export async function POST(
       .from("bids")
       .update({ status: "refunded", refunded_at: new Date().toISOString() })
       .eq("id", bid.id);
+
+    if (bid.experiences.selected_bid_id === bid.id) {
+      await reopenExperienceAfterCaptureFailure(bid.id);
+      await admin
+        .from("bids")
+        .update({ status: "refunded", refunded_at: new Date().toISOString() })
+        .eq("id", bid.id);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

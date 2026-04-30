@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Compass, MessageSquare, Plus, UserCircle2, UserRound } from "lucide-react";
-import { getAuthenticatedUser, getCurrentProfile } from "@/lib/auth";
+import { getAuthenticatedUser, getProfileForUser } from "@/lib/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 const desktopNavItems = [
   { href: "/", label: "Home", icon: Compass },
@@ -16,7 +17,7 @@ const desktopNavItems = [
 
 export async function TopNav() {
   const user = await getAuthenticatedUser();
-  const profile = await getCurrentProfile();
+  const profile = await getProfileForUser(user);
   const authMetadata = user?.user_metadata ?? {};
   const authName =
     typeof authMetadata.full_name === "string"
@@ -44,13 +45,15 @@ export async function TopNav() {
             </div>
           </Link>
 
-          <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
-            {desktopNavItems.map((item) => (
-              <Link key={item.href} href={item.href} className="nav-link">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          {user ? (
+            <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+              {desktopNavItems.map((item) => (
+                <Link key={item.href} href={item.href} className="nav-link">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
 
           <div className="ml-auto flex items-center gap-2">
             {user ? (
@@ -89,6 +92,7 @@ export async function TopNav() {
                     </div>
                   </div>
                 </Link>
+                <LogoutButton />
               </>
             ) : (
               <>

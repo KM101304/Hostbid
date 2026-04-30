@@ -52,6 +52,10 @@ export async function requireUser() {
 export async function getCurrentProfile() {
   const user = await getAuthenticatedUser();
 
+  return getProfileForUser(user);
+}
+
+export async function getProfileForUser(user: Awaited<ReturnType<typeof getAuthenticatedUser>>) {
   if (!user || !hasSupabaseAdminEnv()) {
     return null;
   }

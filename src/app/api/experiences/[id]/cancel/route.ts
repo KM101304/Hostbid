@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { canCancelAwardedExperience } from "@/lib/marketplace";
-import { refundDestinationChargePaymentIntent } from "@/lib/stripe";
+import { isStripePaymentIntentId, refundDestinationChargePaymentIntent } from "@/lib/stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -28,7 +28,7 @@ export async function POST(
 
     const { data: selectedBid } = await admin.from("bids").select("*").eq("id", experience.selected_bid_id).maybeSingle();
 
-    if (selectedBid?.payment_intent_id) {
+    if (isStripePaymentIntentId(selectedBid?.payment_intent_id)) {
       await refundDestinationChargePaymentIntent(selectedBid.payment_intent_id);
       await admin
         .from("bids")

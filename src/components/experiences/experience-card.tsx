@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, MapPin, Sparkles, Star } from "lucide-react";
+import { CalendarDays, MapPin, ShieldCheck, Sparkles, Star } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { RemoteImage } from "@/components/ui/remote-image";
@@ -20,6 +20,7 @@ type ExperienceCardProps = {
       avatar_url?: string | null;
       photo_urls?: string[] | null;
       quality_score?: number | null;
+      is_verified?: boolean | null;
     } | null;
     bids?: { id: string; status: string }[] | null;
   };
@@ -87,6 +88,12 @@ export function ExperienceCard({ experience, priority = false }: ExperienceCardP
         <p className="line-clamp-3 text-sm leading-7 text-slate-600">{experience.description}</p>
 
         <div className="flex flex-wrap gap-2">
+          {experience.profiles?.is_verified ? (
+            <Badge tone="success">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Verified
+            </Badge>
+          ) : null}
           <Badge>
             <MapPin className="h-3.5 w-3.5" />
             {experience.location}

@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils";
 const BUCKET_NAME = "profile-photos";
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 const CROPPER_ASPECT = 4 / 5;
+const SUPPORTED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const SUPPORTED_PHOTO_LABEL = "PNG, JPG, JPEG, or WEBP";
+const UNSUPPORTED_PHOTO_MESSAGE = `Unsupported file type. Please upload ${SUPPORTED_PHOTO_LABEL}.`;
 
 type PendingPhoto = {
   fileName: string;
@@ -38,6 +41,10 @@ function extractStoragePath(url: string) {
   }
 
   return decodeURIComponent(url.slice(index + marker.length));
+}
+
+function createUniquePhotoObjectPath(userId: string, fileName: string) {
+  return `${userId}/${Date.now()}-${globalThis.crypto.randomUUID()}-${sanitizeFileName(fileName)}`;
 }
 
 type PhotoUrlFieldProps = {
@@ -119,20 +126,24 @@ export function PhotoUrlField({
     return user.id;
   }
 
-  async function uploadPhotoFile(file: File) {
+  async function uploadPhotoFile(file: File, originalFileName: string) {
     if (!supabase) {
       throw new Error("Photo uploads are unavailable until Supabase browser keys are loaded.");
     }
 
     const userId = await getUserId();
-    const objectPath = `${userId}/${globalThis.crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+    const objectPath = createUniquePhotoObjectPath(userId, file.name);
     const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(objectPath, file, {
       cacheControl: "3600",
+      contentType: file.type,
+      metadata: {
+        originalFileName,
+      },
       upsert: false,
     });
 
     if (uploadError) {
-      throw new Error(uploadError.message);
+      throw new Error("We could not upload that photo. Please try again.");
     }
 
     const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(objectPath);
@@ -193,10 +204,10 @@ export function PhotoUrlField({
       return;
     }
 
-    const invalidType = files.find((file) => !file.type.startsWith("image/"));
+    const invalidType = files.find((file) => !SUPPORTED_PHOTO_TYPES.has(file.type));
 
     if (invalidType) {
-      setMessage(`${invalidType.name} is not an image file.`);
+      setMessage(UNSUPPORTED_PHOTO_MESSAGE);
       return;
     }
 
@@ -237,7 +248,7 @@ export function PhotoUrlField({
             : null),
         fileName: currentCrop.fileName,
       });
-      const publicUrl = await uploadPhotoFile(croppedFile);
+      const publicUrl = await uploadPhotoFile(croppedFile, currentCrop.fileName);
       const nextUrls = [...trimmedUrls, publicUrl];
       updateUrls(nextUrls);
 
@@ -290,10 +301,13 @@ export function PhotoUrlField({
       >
         <input
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           multiple
           className="hidden"
-          onChange={(event) => void handleFileUpload(event.target.files)}
+          onChange={(event) => {
+            void handleFileUpload(event.target.files);
+            event.currentTarget.value = "";
+          }}
         />
         <div className="flex flex-col items-center justify-center gap-4 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-primary shadow-soft-md">
@@ -308,6 +322,7 @@ export function PhotoUrlField({
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-slate-500">
             <span className="rounded-full bg-white px-3 py-1">Auto-compressed</span>
             <span className="rounded-full bg-white px-3 py-1">Portrait crop ready</span>
+            <span className="rounded-full bg-white px-3 py-1">{SUPPORTED_PHOTO_LABEL}</span>
             <span className="rounded-full bg-white px-3 py-1">{remainingSlots} slots left</span>
           </div>
         </div>
@@ -391,7 +406,14 @@ export function PhotoUrlField({
         </div>
       )}
 
-      {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+      {message ? (
+        <div
+          className="fixed right-4 top-[calc(5rem+env(safe-area-inset-top))] z-50 max-w-sm rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-soft-lg"
+          role="status"
+        >
+          {message}
+        </div>
+      ) : null}
 
       {previewUrl ? (
         <div

@@ -18,6 +18,7 @@ export function LocationShareCard() {
   const [share, setShare] = useState<ShareState | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -39,6 +40,30 @@ export function LocationShareCard() {
     });
   }
 
+  async function requestCurrentLocation() {
+    if ("permissions" in navigator && navigator.permissions?.query) {
+      try {
+        const permission = await navigator.permissions.query({ name: "geolocation" });
+
+        if (permission.state === "denied") {
+          throw new Error("Location access is blocked. Enable location permission for this site and try again.");
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("blocked")) {
+          throw error;
+        }
+      }
+    }
+
+    return await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 20_000,
+      });
+    });
+  }
+
   async function startSharing() {
     setMessage(null);
 
@@ -47,7 +72,17 @@ export function LocationShareCard() {
       return;
     }
 
-    setSharing(true);
+    setStarting(true);
+
+    let firstPosition: GeolocationPosition;
+
+    try {
+      firstPosition = await requestCurrentLocation();
+    } catch (error) {
+      setStarting(false);
+      setMessage(error instanceof Error ? error.message : "Location permission was denied.");
+      return;
+    }
 
     const response = await fetch("/api/location-shares", {
       method: "POST",
@@ -57,13 +92,16 @@ export function LocationShareCard() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setSharing(false);
+      setStarting(false);
       setMessage(payload.error ?? "Unable to start location sharing.");
       return;
     }
 
     const nextShare = payload.share as ShareState;
     setShare(nextShare);
+    await updateLocation(nextShare.id, firstPosition);
+    setSharing(true);
+    setStarting(false);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
@@ -72,6 +110,7 @@ export function LocationShareCard() {
       (error) => {
         setMessage(error.message || "Location permission was denied.");
         setSharing(false);
+        setStarting(false);
       },
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
     );
@@ -88,6 +127,7 @@ export function LocationShareCard() {
     }
 
     setSharing(false);
+    setStarting(false);
     setShare(null);
     setMessage("Location sharing stopped.");
   }
@@ -110,7 +150,9 @@ export function LocationShareCard() {
             Share your live location with one trusted person for two hours. Stop sharing any time.
           </p>
         </div>
-        <Badge tone={sharing ? "success" : "default"}>{sharing ? "Live" : "Off"}</Badge>
+        <Badge tone={sharing ? "success" : starting ? "info" : "default"}>
+          {sharing ? "Live" : starting ? "Starting" : "Off"}
+        </Badge>
       </div>
 
       {share ? (
@@ -133,14 +175,21 @@ export function LocationShareCard() {
             </Button>
           </>
         ) : (
-          <Button type="button" className="gap-2 sm:col-span-2" onClick={startSharing}>
+          <Button type="button" className="gap-2 sm:col-span-2" onClick={startSharing} disabled={starting}>
             <LocateFixed className="h-4 w-4" />
-            Share my live location
+            {starting ? "Requesting location..." : "Share my live location"}
           </Button>
         )}
       </div>
 
-      {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+      {message ? (
+        <div
+          className="fixed right-4 top-[calc(5rem+env(safe-area-inset-top))] z-50 max-w-sm rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 shadow-soft-lg"
+          role="status"
+        >
+          {message}
+        </div>
+      ) : null}
     </Card>
   );
 }

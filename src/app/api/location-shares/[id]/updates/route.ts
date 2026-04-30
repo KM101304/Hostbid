@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getLocationShare, isLocationShareVisible, saveLocationShare } from "@/lib/location-shares";
 import { locationUpdateSchema } from "@/lib/validators";
 
 export async function POST(
@@ -11,35 +11,19 @@ export async function POST(
     const { id } = await params;
     const user = await requireUser();
     const parsed = locationUpdateSchema.parse(await request.json());
-    const admin = createSupabaseAdminClient();
+    const share = await getLocationShare(id);
 
-    const { data: share } = await admin
-      .from("location_shares")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (!share) {
+    if (!share || share.userId !== user.id || !isLocationShareVisible(share)) {
       throw new Error("Location share is not active.");
     }
 
-    const { error } = await admin
-      .from("location_shares")
-      .update({
-        last_latitude: parsed.latitude,
-        last_longitude: parsed.longitude,
-        last_accuracy_meters: parsed.accuracyMeters ?? null,
-        last_seen_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("user_id", user.id);
-
-    if (error) {
-      throw error;
-    }
+    await saveLocationShare({
+      ...share,
+      lastLatitude: parsed.latitude,
+      lastLongitude: parsed.longitude,
+      lastAccuracyMeters: parsed.accuracyMeters ?? null,
+      lastSeenAt: new Date().toISOString(),
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

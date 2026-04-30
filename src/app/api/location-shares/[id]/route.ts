@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getLocationShare, saveLocationShare } from "@/lib/location-shares";
 
 export async function DELETE(
   _request: Request,
@@ -9,16 +9,13 @@ export async function DELETE(
   try {
     const { id } = await params;
     const user = await requireUser();
-    const admin = createSupabaseAdminClient();
-    const { error } = await admin
-      .from("location_shares")
-      .update({ is_active: false })
-      .eq("id", id)
-      .eq("user_id", user.id);
+    const share = await getLocationShare(id);
 
-    if (error) {
-      throw error;
+    if (!share || share.userId !== user.id) {
+      throw new Error("Location share not found.");
     }
+
+    await saveLocationShare({ ...share, isActive: false });
 
     return NextResponse.json({ success: true });
   } catch (error) {

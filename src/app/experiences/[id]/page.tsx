@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import { CalendarDays, MapPin, Sparkles, Star } from "lucide-react";
+import { CalendarDays, MapPin, ShieldCheck, Sparkles, Star } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { ExperienceActions } from "@/components/experiences/experience-actions";
 import { BidList } from "@/components/bids/bid-list";
 import { BidPaymentForm } from "@/components/bids/bid-payment-form";
 import { RealtimeBids } from "@/components/bids/realtime-bids";
@@ -91,12 +92,39 @@ export default async function ExperienceDetailPage({
                 {isOwner ? "Review incoming offers with context." : myBid ? "Your active offer" : "Current offer pool"}
               </h2>
             </div>
-            <BidList bids={bids} isOwner={isOwner} />
+            <BidList
+              bids={bids}
+              isOwner={isOwner}
+              currentUserId={user.id}
+              selectedBidId={experience.selected_bid_id}
+            />
           </Card>
         </section>
 
         <section className="space-y-6">
-          {user && !isOwner ? (
+          {isOwner ? (
+            <Card as="section" className="space-y-4 p-6 sm:p-8">
+              <div>
+                <p className="section-eyebrow">Owner tools</p>
+                <h2 className="mt-3 text-[24px] font-semibold tracking-[-0.03em] text-slate-900">
+                  Manage this experience
+                </h2>
+              </div>
+              <ExperienceActions
+                experienceId={experience.id}
+                title={experience.title}
+                disabled={Boolean(experience.selected_bid_id || experience.winner_user_id)}
+                redirectTo="/dashboard"
+              />
+              {experience.selected_bid_id || experience.winner_user_id ? (
+                <p className="text-sm leading-6 text-slate-500">
+                  Matched experiences keep their record. Use cancellation/refund flow instead of removal.
+                </p>
+              ) : null}
+            </Card>
+          ) : null}
+
+          {user && !isOwner && !myBid && experience.status === "open" ? (
             <BidPaymentForm
               experienceId={id}
               startingBidCents={experience.budget_min_cents}
@@ -122,6 +150,12 @@ export default async function ExperienceDetailPage({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              {experience.profiles?.is_verified ? (
+                <Badge tone="success">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  ID + face verified
+                </Badge>
+              ) : null}
               <Badge tone="info">Profile quality indicator</Badge>
             </div>
             <p className="text-sm leading-8 text-slate-600">{experience.profiles?.bio ?? "Profile bio coming soon."}</p>

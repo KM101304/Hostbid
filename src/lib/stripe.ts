@@ -34,6 +34,10 @@ export function calculatePlatformFee(amountCents: number) {
   return Math.round((amountCents * getPlatformFeePercent()) / 100);
 }
 
+export function isStripePaymentIntentId(paymentIntentId: string | null | undefined): paymentIntentId is string {
+  return Boolean(paymentIntentId?.startsWith("pi_"));
+}
+
 export async function refundDestinationChargePaymentIntent(paymentIntentId: string) {
   const stripe = getStripe();
   const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
